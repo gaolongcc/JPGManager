@@ -92,8 +92,10 @@ BEGIN
     PUSHBUTTON      "Horizontal ",IDC_BtnHoriz,305,245,38,14
     PUSHBUTTON      "Vertical",IDC_BtnVert,305,259,38,14
     GROUPBOX        "Filp",IDC_STATIC,289,236,60,44
-    PUSHBUTTON      "Clone",IDC_BtnClone,367,243,50,14
-    PUSHBUTTON      "Cast",IDC_BtnCast,367,259,50,14
+    PUSHBUTTON      "Clone",IDC_BtnClone,361,242,33,14
+    PUSHBUTTON      "Cast",IDC_BtnCast,361,259,33,14
+    PUSHBUTTON      "prePage",IDC_BtnPrePage,400,242,34,14
+    PUSHBUTTON      "nextPage",IDC_BtnNextPage,400,259,35,14
 END
 
 

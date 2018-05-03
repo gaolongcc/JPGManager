@@ -10,7 +10,9 @@
 
 #include "resource.h"
 #include <string>
-#include <gdiplus.h>//gdi+头文件
+#include <vector>
+#include <gdiplus.h>
+
 
 class CMainDlg : public CDialogImpl<CMainDlg>
 {
@@ -32,92 +34,169 @@ public:
         COMMAND_HANDLER(IDC_BtnVert, BN_CLICKED, OnBnClickedBtnvert)
         COMMAND_HANDLER(IDC_BtnClone, BN_CLICKED, OnBnClickedBtnclone)
         COMMAND_HANDLER(IDC_BtnCast, BN_CLICKED, OnBnClickedBtncast)
+        COMMAND_HANDLER(IDC_EDIT_FATOR, EN_CHANGE, OnEnChangeEditFator)
+        COMMAND_HANDLER(IDC_EDIT_ROTATE, EN_CHANGE, OnEnChangeEditRotate)
+        COMMAND_HANDLER(IDC_BtnPrePage, BN_CLICKED, OnBnClickedBtnprepage)
+        COMMAND_HANDLER(IDC_BtnNextPage, BN_CLICKED, OnBnClickedBtnnextpage)
     END_MSG_MAP()
 
-// Handler prototypes (uncomment arguments if needed):
-//	LRESULT MessageHandler(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
-//	LRESULT CommandHandler(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
-//	LRESULT NotifyHandler(int /*idCtrl*/, LPNMHDR /*pnmh*/, BOOL& /*bHandled*/)
 
-	LRESULT OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
-	{
-		// center the dialog on the screen
-		CenterWindow();
-
-		// set icons
-		HICON hIcon = AtlLoadIconImage(IDR_MAINFRAME, LR_DEFAULTCOLOR, ::GetSystemMetrics(SM_CXICON), ::GetSystemMetrics(SM_CYICON));
-		SetIcon(hIcon, TRUE);
-		HICON hIconSmall = AtlLoadIconImage(IDR_MAINFRAME, LR_DEFAULTCOLOR, ::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON));
-		SetIcon(hIconSmall, FALSE);
-
-        //GDIplus init
-        Gdiplus::GdiplusStartupInput gdiplusStartupInput;
-        Gdiplus::GdiplusStartup(&m_gdiplusToken, &gdiplusStartupInput, NULL);
-
-        //初始化默认比例及角度
-        GetDlgItem(IDC_EDIT_FATOR).SetWindowTextW(_T("0.1"));
-        GetDlgItem(IDC_EDIT_ROTATE).SetWindowTextW(_T("30.0"));
-        GetDlgItem(IDC_STA_F).SetWindowTextW(_T(" scaling:"));
-        GetDlgItem(IDC_STA_R).SetWindowTextW(_T(" angle rotation:"));
-
-        //init numbers
-        m_bFlagbyZoom = true;
-
-		return TRUE;
-	}
-
-	LRESULT OnAppAbout(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
-	{
-		CSimpleDialog<IDD_ABOUTBOX, FALSE> dlg;
-		dlg.DoModal();
-		return 0;
-	}
-
-	LRESULT OnOK(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
-	{
-		// TODO: Add validation code 
-		EndDialog(wID);
-		return 0;
-	}
-
-	LRESULT OnCancel(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
-	{
-		EndDialog(wID);
-		return 0;
-	}
+	
 
 private:
+    /** GDI+内部参数
+    */
     ULONG_PTR m_gdiplusToken;
     static Gdiplus::Graphics m_graphics; 
+    /** 图片路径
+    */
+    std::wstring m_wstrImagePath;
+    /** 前一张图片路径
+    */
+    std::wstring m_wstrPrePath;
+    /** 后一张图片路径
+    */
+    std::wstring m_wstrNextPath;
+    /**图片名集合
+    */
+    std::vector<std::string> m_strFileNameAry;
+    /**当前图片索引
+    */
+    int m_iCurNumber;
+    /** 缩放因子
+    */
+    float m_fFactor;    
+    /** 旋转因子
+    */
+    float m_fRoate;    
+    
 
-    std::wstring m_wstrImagePath;  //图片文件路径
-    float m_fFactor;             //缩小放大因子
-    float m_fRoate;              //旋转因子
-
-    bool m_bFlagbyZoom;   //缩放标志位
-
+    /** 显示图片
+    @param[in] pFilepath 要显示的图片路径
+    */
     void CMainDlg::ShowPicture(const std::wstring& pFilepath);
-    void CMainDlg::DestoryPicture();
-    void CMainDlg::ZoomPicture(const std::wstring& pFilepath, const float fFator);
-    Gdiplus::Image* CMainDlg::ScaleImage(Gdiplus::Image* source, int width, int height);
-    Gdiplus::Image* CMainDlg::RotateImage(Gdiplus::Image* source,   float fRoate);
-    Gdiplus::Image* CMainDlg::FilpImageX(Gdiplus::Image* source);
-    Gdiplus::Image* CMainDlg::FilpImageY(Gdiplus::Image* source);
-    Gdiplus::Image* CMainDlg::CloneImage(Gdiplus::Image* source);
-    Gdiplus::Image* CMainDlg::CastImage(Gdiplus::Image* source);
-    Gdiplus::Rect* CMainDlg::GetRotateRectangle(int width, int height, float angle);
 
+    /** 销毁图片
+    */
+    void CMainDlg::DestoryPicture();
+
+    /** 缩放图片
+    @param[in] pFilepath 要缩放的图片路径
+    @param[in] fFator    要缩放的系数
+    */
+    void CMainDlg::ZoomPicture(const std::wstring& pFilepath, const float fFator);
+
+    /** 旋转图片
+    @param[in] source  要旋转的图片指针
+    @param[in] fRoate  要旋转的系数
+    */
+    Gdiplus::Image* CMainDlg::RotateImage(Gdiplus::Image& source,   float fRoate);
+
+    /** 水平翻转图片
+    @param[in] source  要翻转的图片指针
+    */
+    Gdiplus::Image* CMainDlg::FilpImageX(Gdiplus::Image& source);
+
+    /** 垂直翻转图片
+    @param[in] source  要翻转的图片指针
+    */
+    Gdiplus::Image* CMainDlg::FilpImageY(Gdiplus::Image& source);
+
+    /** 克隆图片
+    @param[in] source  要克隆的图片指针
+    */
+    Gdiplus::Image* CMainDlg::CloneImage(Gdiplus::Image& source);
+
+    /** 折射图片
+    @param[in] source  要折射的图片指针
+    */
+    Gdiplus::Image* CMainDlg::CastImage(Gdiplus::Image& source);
+
+    /** 获取旋转图片的旋转角度
+    @param[in] width  图片的宽
+    @param[in] height 图片的高
+    @param[in] angle  图片的旋转角度
+    */
+    Gdiplus::Rect* CMainDlg::GetRotateRectangle(int width, int height, float angle);
+   
+    /** 获取文件夹同格式文件
+    @param[in] path   文件夹路径
+    @param[out] files 文件路径集合
+    @param[in] format 文件格式
+    */
+    void CMainDlg::GetAllFormatFiles(const std::string& path, std::vector<std::string>& files, const std::string& format);
+
+    /** DLG初始化
+    */
+    LRESULT OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
+
+    /** OnAppAbout
+    */
+    LRESULT OnAppAbout(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    /** OK按钮事件
+    */
+    LRESULT CMainDlg::OnOK(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    /** CANCEL按钮事件
+    */
+    LRESULT OnCancel(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    /** 图片插入按钮
+    */
     LRESULT OnBnClickedBtninsert(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    /** 图片删除按钮
+    */
     LRESULT OnBnClickedBtndelete(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    /** 图片放大按钮
+    */
     LRESULT OnBnClickedBtnpus(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    /** 图片缩小按钮
+    */
     LRESULT OnBnClickedBtndec(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    /** 图片逆时针按钮
+    */
     LRESULT OnBnClickedBtnnagtive(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    /** 图片顺时针按钮
+    */
     LRESULT OnBnClickedBtnpostive(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
-public:
+
+    /** 图片水平翻转按钮
+    */
     LRESULT OnBnClickedBtnhoriz(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    /** 图片垂直翻转按钮
+    */
     LRESULT OnBnClickedBtnvert(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    /** 图片克隆按钮
+    */
     LRESULT OnBnClickedBtnclone(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    /** 图片折射按钮
+    */
     LRESULT OnBnClickedBtncast(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    /** 输入改变按钮
+    */
+    LRESULT OnEnChangeEditFator(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    /** 输入改变按钮
+    */
+    LRESULT OnEnChangeEditRotate(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    /** 前一张按钮
+    */
+    LRESULT OnBnClickedBtnprepage(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    /** 后一张按钮
+    */
+    LRESULT OnBnClickedBtnnextpage(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 };
 
 

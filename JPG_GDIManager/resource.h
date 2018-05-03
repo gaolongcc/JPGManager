@@ -19,8 +19,10 @@
 #define IDC_BtnHoriz                    1011
 #define IDC_BtnVert                     1012
 #define IDC_BtnClone                    1013
-#define IDC_BUTTON3                     1014
 #define IDC_BtnCast                     1014
+#define IDC_BtnPrePage                  1015
+#define IDC_BUTTON2                     1016
+#define IDC_BtnNextPage                 1016
 
 // Next default values for new objects
 // 
@@ -28,7 +30,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        201
 #define _APS_NEXT_COMMAND_VALUE         32775
-#define _APS_NEXT_CONTROL_VALUE         1015
+#define _APS_NEXT_CONTROL_VALUE         1016
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
