@@ -7,6 +7,7 @@
 #include <math.h>
 #include <comutil.h>
 #include <io.h>
+#include <algorithm> 
 #include "ComFunction.h"
 
 /** 缩放因子限值
@@ -16,7 +17,7 @@
 /** 旋转因子限值
 */
 #define MAX_ROTAT   360
-#define MIN_ROTAT   0
+#define MIN_ROTAT   1
 
 
 LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
@@ -26,17 +27,14 @@ LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam
     SetIcon(hIcon, TRUE);
     HICON hIconSmall = AtlLoadIconImage(IDR_MAINFRAME, LR_DEFAULTCOLOR, ::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON));
     SetIcon(hIconSmall, FALSE);
-
     // GDI+的初始化配置
     Gdiplus::GdiplusStartupInput gdiplusStartupInput;
     Gdiplus::GdiplusStartup(&m_gdiplusToken, &gdiplusStartupInput, NULL);
-
     // 初始化默认比例及角度
     GetDlgItem(IDC_EDIT_FATOR).SetWindowTextW(_T("0.1"));
     GetDlgItem(IDC_EDIT_ROTATE).SetWindowTextW(_T("30"));
     GetDlgItem(IDC_STA_F).SetWindowTextW(_T(" scaling:"));
     GetDlgItem(IDC_STA_R).SetWindowTextW(_T(" angle rotation:"));
-
     return TRUE;
 }
 
@@ -66,6 +64,7 @@ LRESULT CMainDlg::OnBnClickedBtninsert(WORD /*wNotifyCode*/, WORD /*wID*/, HWND 
         std::wstring strTempPath = ComFunction::GetFilePath(m_wstrImagePath);
         std::string strFilePath = ComFunction::ConvertWStringToAnsi(strTempPath);
         GetAllFormatFiles(strFilePath, m_strFileNameAry, ".jpg");
+        std::sort(m_strFileNameAry.begin(), m_strFileNameAry.end());
     }
     else
     {
@@ -86,19 +85,38 @@ LRESULT CMainDlg::OnBnClickedBtnpus(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*h
 {
     if (!m_wstrImagePath.empty())
     {
-        // 放大
+        std::wstring wstrTemp;
+        float fTemp = m_fFactor;
+        ::GetDlgItemText(m_hWnd, IDC_EDIT_FATOR, (LPWSTR)wstrTemp.c_str(), wstrTemp.max_size());
+        std::wstring wstrTempBuf(wstrTemp.c_str());
+        if (wstrTempBuf.empty())
+        {
+            if (::MessageBox(m_hWnd, _T("放大比例不能为空！"), _T("tips"), MB_OK) == IDOK)
+            {
+                GetDlgItem(IDC_EDIT_FATOR).SetFocus();
+                return 0;
+            }
+        }
+        float nfator = (float)_wtof(wstrTemp.c_str());
+        if (nfator > MAX_FATOR || nfator < MIN_FATOR)
+        {
+            TCHAR cTemp[1024];
+            swprintf_s(cTemp, _T("输入的系数必须在%3.1f~%3.1f之间!"), MIN_FATOR, MAX_FATOR);
+            std::wstring wstrTitle(cTemp);
+            if (::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
+            {
+                GetDlgItem(IDC_EDIT_FATOR).SetWindowTextW(_T(""));
+                GetDlgItem(IDC_EDIT_FATOR).SetFocus();
+                return 0;
+            }
+        }
         if (m_fFactor < MAX_FATOR)
         {
-            std::wstring wstrTemp;
-            float fTemp = m_fFactor;
-            ::GetDlgItemText(m_hWnd, IDC_EDIT_FATOR, (LPWSTR)wstrTemp.c_str(), wstrTemp.max_size());
-            float nfator = (float)_wtof(wstrTemp.c_str());
             m_fFactor = m_fFactor + nfator;
             if (m_fFactor > MAX_FATOR)
             {
                 m_fFactor = fTemp;
             }
-
             DestoryPicture();
             ZoomPicture(m_wstrImagePath, m_fFactor);
         }
@@ -107,6 +125,10 @@ LRESULT CMainDlg::OnBnClickedBtnpus(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*h
             ::MessageBox(m_hWnd, _T("以当前比例无法在继续放大"), _T("Tips"), MB_OK);
         }
     }
+    else
+    {
+        ::MessageBox(m_hWnd, _T("请先插入图片"), _T("Tips"), MB_OK);
+    }
     return 0;
 }
 
@@ -114,21 +136,46 @@ LRESULT CMainDlg::OnBnClickedBtndec(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*h
 {
     if (!m_wstrImagePath.empty())
     {
+        std::wstring wstrTemp;
+        float fTemp = m_fFactor;
+        ::GetDlgItemText(m_hWnd, IDC_EDIT_FATOR, (LPWSTR)wstrTemp.c_str(), wstrTemp.max_size());
+        std::wstring wstrTempBuf(wstrTemp.c_str());
+        if (wstrTempBuf.empty())
+        {
+            if (::MessageBox(m_hWnd, _T("缩小比例不能为空！"), _T("tips"), MB_OK) == IDOK)
+            {
+                GetDlgItem(IDC_EDIT_FATOR).SetFocus();
+                return 0;
+            }
+        }
+        float nfator = (float)_wtof(wstrTemp.c_str());
+        if (nfator > MAX_FATOR || nfator < MIN_FATOR)
+        {
+            TCHAR cTemp[1024];
+            swprintf_s(cTemp, _T("输入的系数必须在%3.1f~%3.1f之间!"), MIN_FATOR, MAX_FATOR);
+            std::wstring wstrTitle(cTemp);
+            if (::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
+            {
+                GetDlgItem(IDC_EDIT_FATOR).SetWindowTextW(_T(""));
+                GetDlgItem(IDC_EDIT_FATOR).SetFocus();
+                return 0;
+            }
+        }
         if (m_fFactor > MIN_FATOR)
         {
-            std::wstring wstrTemp;
-            float fTemp = m_fFactor;
-            ::GetDlgItemText(m_hWnd, IDC_EDIT_FATOR, (LPWSTR)wstrTemp.c_str(), wstrTemp.max_size());
-            float nfator = (float)_wtof(wstrTemp.c_str());
             m_fFactor = m_fFactor - nfator;
             if (m_fFactor <= MIN_FATOR)
             {
                 m_fFactor = fTemp;
-                ::MessageBox(m_hWnd, _T("以当前比例无法在继续缩小"), _T("标题"), MB_OK);
+                ::MessageBox(m_hWnd, _T("以当前比例无法在继续缩小"), _T("tips"), MB_OK);
             }
             DestoryPicture();
             ZoomPicture(m_wstrImagePath, m_fFactor);
         }
+    }
+    else
+    {
+        ::MessageBox(m_hWnd, _T("请先插入图片"), _T("Tips"), MB_OK);
     }
     return 0;
 }
@@ -137,13 +184,34 @@ LRESULT CMainDlg::OnBnClickedBtnnagtive(WORD /*wNotifyCode*/, WORD /*wID*/, HWND
 {
     if (!m_wstrImagePath.empty())
     {
+        std::wstring wstrTemp;
+        ::GetDlgItemText(m_hWnd, IDC_EDIT_ROTATE, (LPWSTR)wstrTemp.c_str(), wstrTemp.max_size());
+        std::wstring wstrTempBuf(wstrTemp.c_str());
+        if (wstrTempBuf.empty())
+        {
+            if (::MessageBox(m_hWnd, _T("旋转角度不能为空！"), _T("tips"), MB_OK) == IDOK)
+            {
+                GetDlgItem(IDC_EDIT_ROTATE).SetFocus();
+                return 0;
+            }
+        }
+        int nRotar = _wtoi(wstrTemp.c_str());
+        if (nRotar > MAX_ROTAT || nRotar < MIN_ROTAT)
+        {
+            TCHAR cTemp[1024];
+            swprintf_s(cTemp, _T("输入的角度必须在%d~%d之间!"), MIN_ROTAT, MAX_ROTAT);
+            std::wstring wstrTitle(cTemp);
+            if (::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
+            {
+                GetDlgItem(IDC_EDIT_ROTATE).SetWindowTextW(_T(""));
+                GetDlgItem(IDC_EDIT_ROTATE).SetFocus();
+                return 0;
+            }
+        }
+        m_fRoate = m_fRoate - nRotar;
         Gdiplus::Image* image = new Gdiplus::Image(m_wstrImagePath.c_str());
         if (NULL != image)
         {
-            std::string strTemp;
-            ::GetDlgItemText(m_hWnd, IDC_EDIT_ROTATE, (LPWSTR)strTemp.c_str(), strTemp.max_size());
-            int nRotar = atoi(strTemp.c_str()); 
-            m_fRoate = m_fRoate - nRotar;
             Gdiplus::Image* roteimage = RotateImage(*image, m_fRoate);
             // 清空
             DestoryPicture();
@@ -181,6 +249,10 @@ LRESULT CMainDlg::OnBnClickedBtnnagtive(WORD /*wNotifyCode*/, WORD /*wID*/, HWND
             image = NULL;
         }
     }
+    else
+    {
+        ::MessageBox(m_hWnd, _T("请先插入图片"), _T("Tips"), MB_OK);
+    }
     return 0;
 }
 
@@ -188,13 +260,34 @@ LRESULT CMainDlg::OnBnClickedBtnpostive(WORD /*wNotifyCode*/, WORD /*wID*/, HWND
 {
     if (!m_wstrImagePath.empty())
     {
+        std::wstring wstrTemp;
+        ::GetDlgItemText(m_hWnd, IDC_EDIT_ROTATE, (LPWSTR)wstrTemp.c_str(), wstrTemp.max_size());
+        std::wstring wstrTempBuf(wstrTemp.c_str());
+        if (wstrTempBuf.empty())
+        {
+            if (::MessageBox(m_hWnd, _T("旋转角度不能为空！"), _T("Tips"), MB_OK) == IDOK)
+            {
+                GetDlgItem(IDC_EDIT_ROTATE).SetFocus();
+                return 0;
+            }
+        }
+        int nRotar = _wtoi(wstrTemp.c_str());
+        if (nRotar > MAX_ROTAT || nRotar < MIN_ROTAT)
+        {
+            TCHAR cTemp[1024];
+            swprintf_s(cTemp, _T("输入的角度必须在%d~%d之间!"), MIN_ROTAT, MAX_ROTAT);
+            std::wstring wstrTitle(cTemp);
+            if (::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
+            {
+                GetDlgItem(IDC_EDIT_ROTATE).SetWindowTextW(_T(""));
+                GetDlgItem(IDC_EDIT_ROTATE).SetFocus();
+                return 0;
+            }
+        }
+        m_fRoate = m_fRoate + nRotar;
         Gdiplus::Image* image = new Gdiplus::Image(m_wstrImagePath.c_str());
         if (NULL != image)
         {
-            std::string strTemp ;
-            ::GetDlgItemText(m_hWnd, IDC_EDIT_ROTATE, (LPWSTR)strTemp.c_str(), strTemp.max_size());
-            int nRotar = atoi(strTemp.c_str());
-            m_fRoate = m_fRoate + nRotar;
             Gdiplus::Image* roteimage = RotateImage(*image, m_fRoate);
             // 清空
             DestoryPicture();
@@ -235,6 +328,10 @@ LRESULT CMainDlg::OnBnClickedBtnpostive(WORD /*wNotifyCode*/, WORD /*wID*/, HWND
             image = NULL;
         }
     }
+    else
+    {
+        ::MessageBox(m_hWnd, _T("请先插入图片"), _T("Tips"), MB_OK);
+    }
     return 0;
 }
 
@@ -242,7 +339,7 @@ LRESULT CMainDlg::OnBnClickedBtnhoriz(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /
 {
     if (!m_wstrImagePath.empty())
     {
-        Gdiplus::Image *image = new Gdiplus::Image(m_wstrImagePath.c_str());
+        Gdiplus::Image* image = new Gdiplus::Image(m_wstrImagePath.c_str());
         if (NULL != image)
         {
             Gdiplus::Image* roteimage = FilpImageX(*image);
@@ -285,6 +382,10 @@ LRESULT CMainDlg::OnBnClickedBtnhoriz(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /
             image = NULL;
         }
     }
+    else
+    {
+        ::MessageBox(m_hWnd, _T("请先插入图片"), _T("Tips"), MB_OK);
+    }
     return 0;
 
 }
@@ -293,8 +394,7 @@ LRESULT CMainDlg::OnBnClickedBtnvert(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*
 {
     if (!m_wstrImagePath.empty())
     {
-        //垂直
-        Gdiplus::Image *image = new Gdiplus::Image(m_wstrImagePath.c_str());
+        Gdiplus::Image* image = new Gdiplus::Image(m_wstrImagePath.c_str());
         if (NULL != image)
         {
             Gdiplus::Image* roteimage = FilpImageY(*image);
@@ -311,19 +411,18 @@ LRESULT CMainDlg::OnBnClickedBtnvert(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*
                 wnd.GetClientRect(&rect);
                 CDC pDc(wnd.GetDC());
                 Gdiplus::Graphics graphics(pDc.m_hDC);
-                //防止失真
+                // 防止失真
                 SetStretchBltMode(pDc.m_hDC, STRETCH_HALFTONE);
 
-                //如果图片的尺寸小于图片控件尺寸 
+                // 如果图片的尺寸小于图片控件尺寸 
                 if (width <= rect.Width() && height <= rect.Width())
                 {
                     filprect = CRect(rect.TopLeft(), CSize(width, height));
                     graphics.DrawImage(roteimage, filprect.top, filprect.left, filprect.Width(), filprect.Height());
                 }
-                //如果图片的尺寸大于图片控件的尺寸 
+                // 如果图片的尺寸大于图片控件的尺寸 
                 else
                 {
-                    //求Y方向的缩放因子
                     float xScale = (float)rect.Width() / (float)width;
                     float yScale = (float)rect.Height() / (float)height;
                     float scaleIndex = (xScale <= yScale ? xScale : yScale);
@@ -338,6 +437,10 @@ LRESULT CMainDlg::OnBnClickedBtnvert(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*
             image = NULL;
         }
     }
+    else
+    {
+        ::MessageBox(m_hWnd, _T("请先插入图片"), _T("Tips"), MB_OK);
+    }
     return 0;
 }
 
@@ -345,8 +448,8 @@ LRESULT CMainDlg::OnBnClickedBtnclone(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /
 {
     if (!m_wstrImagePath.empty())
     {
-        // 垂直
-        Gdiplus::Image *image = new Gdiplus::Image(m_wstrImagePath.c_str());
+
+        Gdiplus::Image* image = new Gdiplus::Image(m_wstrImagePath.c_str());
         if (NULL != image)
         {
             Gdiplus::Image* roteimage = CloneImage(*image);
@@ -389,6 +492,10 @@ LRESULT CMainDlg::OnBnClickedBtnclone(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /
             image = NULL;
         }
     }
+    else
+    {
+        ::MessageBox(m_hWnd, _T("请先插入图片"), _T("Tips"), MB_OK);
+    }
     return 0;
 }
 
@@ -396,7 +503,6 @@ LRESULT CMainDlg::OnBnClickedBtncast(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*
 {
     if (!m_wstrImagePath.empty())
     {
-        // 折射
         Gdiplus::Image* image = new Gdiplus::Image(m_wstrImagePath.c_str());
         if (NULL != image)
         {
@@ -440,6 +546,10 @@ LRESULT CMainDlg::OnBnClickedBtncast(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*
             image = NULL;
         }
     }
+    else
+    {
+        ::MessageBox(m_hWnd, _T("请先插入图片"), _T("Tips"), MB_OK);
+    }
     return 0;
 }
 
@@ -456,7 +566,6 @@ void CMainDlg::ShowPicture(const std::wstring& pFilepath)
     CRect rect;
     CRect fatorect;
     wnd.GetClientRect(&rect);
-  
     float xScale = (float)rect.Width() / (float)width;
     float yScale = (float)rect.Height() / (float)height;
     float scaleIndex = (xScale <= yScale ? xScale : yScale);
@@ -491,13 +600,13 @@ void CMainDlg::ZoomPicture(const std::wstring& pFilepath, const float fFator)
         // 防止失真
         SetStretchBltMode(pDc.m_hDC, STRETCH_HALFTONE);
 
-        // 如果图片的尺寸小于图片控件尺寸
+        // 图片的尺寸小于图片控件尺寸
         if (width <= rect.Width() && height <= rect.Width())
         {
             fatorrect = CRect(rect.TopLeft(), CSize((int)(width * fFator), (int)(height * fFator)));
             graphics.DrawImage(image, fatorrect.top, fatorrect.left, fatorrect.Width(), fatorrect.Height());
         }
-        // 如果图片的尺寸大于图片控件的尺寸 
+        // 图片的尺寸大于图片控件的尺寸 
         else
         {
             float xScale = (float)rect.Width() / (float)width;
@@ -537,15 +646,15 @@ Gdiplus::Image* CMainDlg::RotateImage(Gdiplus::Image& source,  float fRoate)
             graphics.TranslateTransform((Gdiplus::REAL)centerPoint->X, (Gdiplus::REAL)centerPoint->Y);
             graphics.RotateTransform(fAngle);
             graphics.TranslateTransform(-(Gdiplus::REAL)centerPoint->X, -(Gdiplus::REAL)centerPoint->Y);
-            Gdiplus::Point* Offset = new Gdiplus::Point((rotateWidth - srcWidth) / 2, (rotateHeight - srcHeight) / 2);
-            if (NULL != Offset)
+            Gdiplus::Point* offset = new Gdiplus::Point((rotateWidth - srcWidth) / 2, (rotateHeight - srcHeight) / 2);
+            if (NULL != offset)
             {
-                graphics.DrawImage(&source, Offset->X, Offset->Y, srcWidth, srcHeight);
+                graphics.DrawImage(&source, offset->X, offset->Y, srcWidth, srcHeight);
                 // 重至绘图的所有变换
                 graphics.ResetTransform();
                 graphics.Save();
-                delete Offset;
-                Offset = NULL;
+                delete offset;
+                offset = NULL;
             }
             delete centerPoint;
             centerPoint = NULL;
@@ -699,24 +808,32 @@ LRESULT CMainDlg::OnEnChangeEditFator(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /
     float fTemp = m_fFactor;
     ::GetDlgItemText(this->m_hWnd, IDC_EDIT_FATOR, (LPWSTR)wstrTemp.c_str(), wstrTemp.max_size());
     std::string strLen = ComFunction::ConvertWStringToAnsi(wstrTemp);
-    bool isTrue = ComFunction::IsNumber(strLen);
+    bool isTrue = ComFunction::IsFloatNumber(strLen);
     if (!isTrue)
     {
         TCHAR cTemp[1024];
-        swprintf_s(cTemp, _T("请输入一个有效的数字！"), MIN_ROTAT, MAX_ROTAT);
+        swprintf_s(cTemp, _T("请输入一个有效的浮点型数字！"), MIN_ROTAT, MAX_ROTAT);
         std::wstring wstrTitle(cTemp);
         if (::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
         {
-            return 0;
+            GetDlgItem(IDC_EDIT_FATOR).SetWindowTextW(_T(""));
+            GetDlgItem(IDC_EDIT_FATOR).SetFocus();
         }
     }
     float nfator = (float)_wtof(wstrTemp.c_str());
-    if (nfator > MAX_FATOR || nfator < MIN_FATOR)
+    if (nfator > 0)
     {
-        TCHAR cTemp[1024];
-        swprintf_s(cTemp, _T("输入的系数必须在%f~%f之间"), MIN_FATOR, MAX_FATOR);
-        std::wstring wstrTitle(cTemp);
-        ::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK);
+        if (nfator > MAX_FATOR || nfator < MIN_FATOR)
+        {
+            TCHAR cTemp[1024];
+            swprintf_s(cTemp, _T("输入的系数必须在%3.1f~%3.1f之间!"), MIN_FATOR, MAX_FATOR);
+            std::wstring wstrTitle(cTemp);
+            if (::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
+            {
+                GetDlgItem(IDC_EDIT_FATOR).SetWindowTextW(_T(""));
+                GetDlgItem(IDC_EDIT_FATOR).SetFocus();
+            }
+        }
     }
     return 0;
 }
@@ -726,24 +843,32 @@ LRESULT CMainDlg::OnEnChangeEditRotate(WORD /*wNotifyCode*/, WORD /*wID*/, HWND 
     std::wstring wstrTemp;
     ::GetDlgItemText(m_hWnd, IDC_EDIT_ROTATE, (LPWSTR)wstrTemp.c_str(), wstrTemp.max_size());
     std::string strLen = ComFunction::ConvertWStringToAnsi(wstrTemp);
-    bool isTrue = ComFunction::IsNumber(strLen);
+    bool isTrue = ComFunction::IsIntNumber(strLen);
     if (!isTrue)
     {
         TCHAR cTemp[1024];
-        swprintf_s(cTemp, _T("请输入一个有效的数字！"), MIN_ROTAT, MAX_ROTAT);
+        swprintf_s(cTemp, _T("请输入一个有效的整型数字！"), MIN_ROTAT, MAX_ROTAT);
         std::wstring wstrTitle(cTemp);
         if (::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
         {
-            return 0;
+            GetDlgItem(IDC_EDIT_ROTATE).SetWindowTextW(_T(""));
+            GetDlgItem(IDC_EDIT_ROTATE).SetFocus();
         }
     }
     int nRotar = _wtoi(wstrTemp.c_str());
-    if (nRotar > MAX_ROTAT || nRotar < MIN_ROTAT)
+    if (nRotar > 0)
     {
-        TCHAR cTemp[1024];
-        swprintf_s(cTemp, _T("输入的角度必须在%d~%d之间"), MIN_ROTAT, MAX_ROTAT);
-        std::wstring wstrTitle(cTemp);
-        ::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK);
+        if (nRotar > MAX_ROTAT || nRotar < MIN_ROTAT)
+        {
+            TCHAR cTemp[1024];
+            swprintf_s(cTemp, _T("输入的角度必须在%d~%d之间!"), MIN_ROTAT, MAX_ROTAT);
+            std::wstring wstrTitle(cTemp);
+            if (::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
+            {
+                GetDlgItem(IDC_EDIT_ROTATE).SetWindowTextW(_T(""));
+                GetDlgItem(IDC_EDIT_ROTATE).SetFocus();
+            }
+        }
     }
     return 0;
 }
@@ -760,29 +885,36 @@ LRESULT CMainDlg::OnBnClickedBtnprepage(WORD /*wNotifyCode*/, WORD /*wID*/, HWND
         {
             for (size_t i = 0; i < m_strFileNameAry.size(); i++)
             {
-                if (ComFunction::ConvertWStringToAnsi(m_wstrImagePath) == m_strFileNameAry[i])
+                std::string strImagepath = ComFunction::ConvertWStringToAnsi(m_wstrImagePath);
+                if (strImagepath == m_strFileNameAry[i])
                 {
                     m_iCurNumber = (int)i;
                 }
             }
-            std::wstring strCurPath;
+            std::wstring wstrCurPath;
+            std::string strFilename;
             if ((m_iCurNumber - 1) <= 0)
             {
-                strCurPath = ComFunction::ConvertAnsiToWString(m_strFileNameAry[m_strFileNameAry.size() - 1]);
-
+                strFilename = m_strFileNameAry[m_strFileNameAry.size() - 1];
+                wstrCurPath = ComFunction::ConvertAnsiToWString(strFilename);
             }
             else
             {
-                strCurPath = ComFunction::ConvertAnsiToWString(m_strFileNameAry[m_iCurNumber - 1]);
+                strFilename = m_strFileNameAry[m_iCurNumber - 1];
+                wstrCurPath = ComFunction::ConvertAnsiToWString(strFilename);
             }
             // 更新全局图片路径
-            m_wstrImagePath = strCurPath;
+            m_wstrImagePath = wstrCurPath;
             DestoryPicture();
             ShowPicture(m_wstrImagePath);
             // 初始化缩放因子
             m_fFactor = 1.0;
             m_fRoate = 0.0;
         }
+    }
+    else
+    {
+        ::MessageBox(m_hWnd, _T("请先插入图片"), _T("Tips"), MB_OK);
     }
     return 0;
 }
@@ -799,29 +931,36 @@ LRESULT CMainDlg::OnBnClickedBtnnextpage(WORD /*wNotifyCode*/, WORD /*wID*/, HWN
         {
             for (size_t i = 0; i < m_strFileNameAry.size(); i++)
             {
-                if (ComFunction::ConvertWStringToAnsi(m_wstrImagePath) == m_strFileNameAry[i])
+                std::string strImagepath = ComFunction::ConvertWStringToAnsi(m_wstrImagePath);
+                if (strImagepath == m_strFileNameAry[i])
                 {
                     m_iCurNumber = (int)i;
                 }
             }
-            std::wstring strCurPath;
+            std::wstring wstrCurPath;
+            std::string strFilename;
             if ((m_iCurNumber + 1) >= (int)m_strFileNameAry.size())
             {
-                strCurPath = ComFunction::ConvertAnsiToWString(m_strFileNameAry[0]);
-
+                strFilename = m_strFileNameAry[0];
+                wstrCurPath = ComFunction::ConvertAnsiToWString(strFilename);
             }
             else
             {
-                strCurPath = ComFunction::ConvertAnsiToWString(m_strFileNameAry[m_iCurNumber + 1]);
+                strFilename = m_strFileNameAry[m_iCurNumber + 1];
+                wstrCurPath = ComFunction::ConvertAnsiToWString(strFilename);
             }
             // 更新全局图片路径
-            m_wstrImagePath = strCurPath;
+            m_wstrImagePath = wstrCurPath;
             DestoryPicture();
             ShowPicture(m_wstrImagePath);
             // 初始化缩放因子
             m_fFactor = 1.0;
             m_fRoate = 0.0;
         }
+    }
+    else
+    {
+        ::MessageBox(m_hWnd, _T("请先插入图片"), _T("Tips"), MB_OK);
     }
     return 0;
 }
@@ -840,7 +979,7 @@ void CMainDlg::GetAllFormatFiles(const std::string& path, std::vector<std::strin
             if ((fileinfo.attrib &  _A_SUBDIR))
             {
                 if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0)
-                {           
+                {
                     GetAllFormatFiles(p.assign(path).append("\\").append(fileinfo.name), files, format);
                 }
             }
@@ -849,7 +988,6 @@ void CMainDlg::GetAllFormatFiles(const std::string& path, std::vector<std::strin
                 files.push_back(p.assign(path).append("\\").append(fileinfo.name));
             }
         } while (::_findnext(hFile, &fileinfo) == 0);
-
         ::_findclose(hFile);
     }
 }
