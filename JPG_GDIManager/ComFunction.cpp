@@ -6,91 +6,86 @@
 
 ComFunction::ComFunction()
 {
+
 }
 
 ComFunction::~ComFunction()
 {
+
 }
 
-// 将wstring转换成string
-std::string ComFunction::ConvertWStringToAnsi(const std::wstring& wstr)
+std::string ComFunction::ConvertWstringToAnsi(const std::wstring& srcWidBytes)
 {
-    std::string result;
-    std::wstring wstrTemp(wstr.c_str());
-    int len = WideCharToMultiByte(CP_ACP, 0, wstrTemp.c_str(), wstrTemp.size(), NULL, 0, NULL, NULL);
-    if (len <= 0)
+    std::string objBytes;
+    std::wstring widBytesBuf(srcWidBytes.c_str());
+    int nWidBytesLen = WideCharToMultiByte(CP_ACP, 0, widBytesBuf.c_str(), widBytesBuf.size(), NULL, 0, NULL, NULL);
+    if (nWidBytesLen <= 0)
     {
-        return result;
+        return objBytes;
     }
-    char* buffer = new char[len + 1];
-    if (buffer == NULL)
+    char* pBytesBuf = new char[nWidBytesLen + 1];
+    if (pBytesBuf == NULL)
     {
-        return result;
+        return objBytes;
     }
-    WideCharToMultiByte(CP_ACP, 0, wstrTemp.c_str(), wstrTemp.size(), buffer, len, NULL, NULL);
-    // 字符串断尾
-    buffer[len] = '\0';              
-    result.append(buffer);           
-    delete[] buffer;                  
-    // 返回值
-    return result;
+    WideCharToMultiByte(CP_ACP, 0, widBytesBuf.c_str(), widBytesBuf.size(), pBytesBuf, nWidBytesLen, NULL, NULL);
+    pBytesBuf[nWidBytesLen] = '\0';
+    objBytes.append(pBytesBuf);
+
+    delete[] pBytesBuf;
+    return objBytes;
 }
 
-// 将string转换成wstring
-std::wstring ComFunction::ConvertAnsiToWString(const std::string& str)
+std::wstring ComFunction::ConvertAnsiToWstring(const std::string& srcBytes)
 {
-    std::wstring result;
-    int len = MultiByteToWideChar(CP_ACP, 0, str.c_str(), str.size(), NULL, 0);
-    if (len < 0)
+    std::wstring objWidBytes;
+    int nBytesLen = MultiByteToWideChar(CP_ACP, 0, srcBytes.c_str(), srcBytes.size(), NULL, 0);
+    if (nBytesLen < 0)
     {
-        return result;
+        return objWidBytes;
     }
-    wchar_t* buffer = new wchar_t[len + 1];
-    if (buffer == NULL)
+    wchar_t* pWidBytesBuf = new wchar_t[nBytesLen + 1];
+    if (pWidBytesBuf == NULL)
     {
-        return result;
+        return objWidBytes;
     } 
-    MultiByteToWideChar(CP_ACP, 0, str.c_str(), str.size(), buffer, len);
-    //字符串断尾
-    buffer[len] = '\0';  
-    //赋值
-    result.append(buffer);  
-    //删除缓冲区
-    delete[] buffer;                       
-    //返回值
-    return result;
+    MultiByteToWideChar(CP_ACP, 0, srcBytes.c_str(), srcBytes.size(), pWidBytesBuf, nBytesLen);
+    pWidBytesBuf[nBytesLen] = '\0';
+    objWidBytes.append(pWidBytesBuf);
+
+    delete[] pWidBytesBuf;
+    return objWidBytes;
 }
 
-std::wstring ComFunction::GetFilePath(std::wstring& strFullPathName)
+std::wstring ComFunction::GetFilePath(std::wstring& fullPathName)
 {
-    if (strFullPathName.empty())
+    if (fullPathName.empty())
     {
         return _T("");
     }
-    std::string::size_type iPos = strFullPathName.find_last_of(_T('\\'));
-    return strFullPathName.substr(0, iPos);
+    std::string::size_type iPos = fullPathName.find_last_of(_T('\\'));
+    return fullPathName.substr(0, iPos);
 }
 
-// 判断输入的是否为浮点数字
-bool ComFunction::IsFloatNumber(const std::string &str)
+bool ComFunction::IsFloatNumber(const std::string& strNumber)
 {
-    bool bflagPoint = true;
-    if (str.size() > 8)
+    bool flagPoint = true;
+    if (strNumber.size() > 8)
     {
         return false;
     }
-    if (str.size() > 0)
+    if (strNumber.size() > 0)
     {
-        if (str.c_str()[0] != '0')
+        if (strNumber.c_str()[0] != '0')
         {
-            for (size_t i = 0; i < str.size(); i++)
+            for (size_t i = 0; i < strNumber.size(); i++)
             {
-                if (str.c_str()[i] == '.' && bflagPoint)
+                if (strNumber.c_str()[i] == '.' && flagPoint)
                 {
-                    bflagPoint = false;
+                    flagPoint = false;
                     continue;
                 }
-                if (str.c_str()[i] < '0' || str.c_str()[i] > '9')
+                if (strNumber.c_str()[i] < '0' || strNumber.c_str()[i] > '9')
                 {
                     return false;
                 }
@@ -102,14 +97,14 @@ bool ComFunction::IsFloatNumber(const std::string &str)
         }
         else
         {
-            for (size_t i = 1; i < str.size(); i++)
+            for (size_t i = 1; i < strNumber.size(); i++)
             {
-                if (str.c_str()[i] == '.' && bflagPoint)
+                if (strNumber.c_str()[i] == '.' && flagPoint)
                 {
-                    bflagPoint = false;
+                    flagPoint = false;
                     continue;
                 }
-                if (str.c_str()[i] < '0' || str.c_str()[i] > '9')
+                if (strNumber.c_str()[i] < '0' || strNumber.c_str()[i] > '9')
                 {
                     return false;
                 }
@@ -124,17 +119,17 @@ bool ComFunction::IsFloatNumber(const std::string &str)
 }
 
 // 判断输入的是否为整型数字
-bool ComFunction::IsIntNumber(const std::string &str)
+bool ComFunction::IsIntNumber(const std::string& strNumber)
 {
-    if (str.size() > 8)
+    if (strNumber.size() > 8)
     {
         return false;
     }
-    if (str.size() > 0)
+    if (strNumber.size() > 0)
     {
-        for (size_t i = 0; i < str.size(); i++)
+        for (size_t i = 0; i < strNumber.size(); i++)
         {
-            if (str.c_str()[i] < '0' || str.c_str()[i] > '9')
+            if (strNumber.c_str()[i] < '0' || strNumber.c_str()[i] > '9')
             {
                 return false;
             }

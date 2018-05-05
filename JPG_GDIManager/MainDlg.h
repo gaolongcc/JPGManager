@@ -24,107 +24,84 @@ public:
 		COMMAND_ID_HANDLER(ID_APP_ABOUT, OnAppAbout)
 		COMMAND_ID_HANDLER(IDOK, OnOK)
 		COMMAND_ID_HANDLER(IDCANCEL, OnCancel)
-        COMMAND_HANDLER(IDC_BTNINSERT, BN_CLICKED, OnBnClickedBtninsert)
-        COMMAND_HANDLER(IDC_BTNDELETE, BN_CLICKED, OnBnClickedBtndelete)
-        COMMAND_HANDLER(IDC_BTNPUS, BN_CLICKED, OnBnClickedBtnpus)
-        COMMAND_HANDLER(IDC_BTNDEC, BN_CLICKED, OnBnClickedBtndec)
-        COMMAND_HANDLER(IDC_BTNNAGTIVE, BN_CLICKED, OnBnClickedBtnnagtive)
-        COMMAND_HANDLER(IDC_BTNPOSTIVE, BN_CLICKED, OnBnClickedBtnpostive)
-        COMMAND_HANDLER(IDC_BtnHoriz, BN_CLICKED, OnBnClickedBtnhoriz)
-        COMMAND_HANDLER(IDC_BtnVert, BN_CLICKED, OnBnClickedBtnvert)
-        COMMAND_HANDLER(IDC_BtnClone, BN_CLICKED, OnBnClickedBtnclone)
-        COMMAND_HANDLER(IDC_BtnCast, BN_CLICKED, OnBnClickedBtncast)
+        COMMAND_HANDLER(IDC_BTNINSERT, BN_CLICKED, OnClickedBtnInsert)
+        COMMAND_HANDLER(IDC_BTNDELETE, BN_CLICKED, OnClickedBtnDelete)
+        COMMAND_HANDLER(IDC_BTNPUS, BN_CLICKED, OnClickedBtnZoomPlus)
+        COMMAND_HANDLER(IDC_BTNDEC, BN_CLICKED, OnClickedBtnZoomDec)
+        COMMAND_HANDLER(IDC_BTNNAGTIVE, BN_CLICKED, OnClickedBtnRoateNagt)
+        COMMAND_HANDLER(IDC_BTNPOSTIVE, BN_CLICKED, OnClickedBtnRoatePost)
+        COMMAND_HANDLER(IDC_BtnHoriz, BN_CLICKED, OnClickedBtnFlipHoriz)
+        COMMAND_HANDLER(IDC_BtnVert, BN_CLICKED, OnClickedBtnFlipVert)
+        COMMAND_HANDLER(IDC_BtnClone, BN_CLICKED, OnClickedBtnClone)
+        COMMAND_HANDLER(IDC_BtnCast, BN_CLICKED, OnClickedBtnCast)
         COMMAND_HANDLER(IDC_EDIT_FATOR, EN_CHANGE, OnEnChangeEditFator)
         COMMAND_HANDLER(IDC_EDIT_ROTATE, EN_CHANGE, OnEnChangeEditRotate)
-        COMMAND_HANDLER(IDC_BtnPrePage, BN_CLICKED, OnBnClickedBtnprepage)
-        COMMAND_HANDLER(IDC_BtnNextPage, BN_CLICKED, OnBnClickedBtnnextpage)
+        COMMAND_HANDLER(IDC_BtnPrePage, BN_CLICKED, OnClickedBtnPrepage)
+        COMMAND_HANDLER(IDC_BtnNextPage, BN_CLICKED, OnClickedBtnNextpage)
     END_MSG_MAP()
 
 
 	
 
 private:
-    /** GDI+内部参数
-    */
-    ULONG_PTR m_gdiplusToken;
-    static Gdiplus::Graphics m_graphics; 
-    /** 图片路径
-    */
-    std::wstring m_wstrImagePath;
-    /** 前一张图片路径
-    */
-    std::wstring m_wstrPrePath;
-    /** 后一张图片路径
-    */
-    std::wstring m_wstrNextPath;
-    /**图片名集合
-    */
-    std::vector<std::string> m_strFileNameAry;
-    /**当前图片索引
-    */
-    int m_iCurNumber;
-    /** 缩放因子
-    */
-    float m_fFactor;    
-    /** 旋转因子
-    */
-    float m_fRoate;    
+    
     
 
     /** 显示图片
-    @param[in] pFilepath 要显示的图片路径
+    @param[in] pFilepath 图片的路径
     */
-    void CMainDlg::ShowPicture(const std::wstring& pFilepath);
+    void CMainDlg::ShowImage(const std::wstring& srcImagePath);
 
     /** 销毁图片
     */
-    void CMainDlg::DestoryPicture();
+    void CMainDlg::DestoryImage();
 
     /** 缩放图片
-    @param[in] pFilepath 要缩放的图片路径
-    @param[in] fFator    要缩放的系数
+    @param[in] srcImage 原始图片
+    @param[in] zoomImage 缩放后图片
+    @param[in] fFator 缩放系数
     */
-    void CMainDlg::ZoomPicture(const std::wstring& pFilepath, const float fFator);
+    void ZoomImage(Gdiplus::Image& srcImage, Gdiplus::Image& zoomImage, double fFator);
 
     /** 旋转图片
-    @param[in] source  要旋转的图片指针
-    @param[in] fRoate  要旋转的系数
+    @param[in] srcImage 原始图片
+    @param[in] roateImage 旋转后图片
+    @param[in] nRoate 旋转角度
     */
-    Gdiplus::Image* CMainDlg::RotateImage(Gdiplus::Image& source,   float fRoate);
+    void RotateImage(Gdiplus::Image& srcImage, Gdiplus::Image& roateImage, int nRoate);
 
-    /** 水平翻转图片
-    @param[in] source  要翻转的图片指针
+    /** 翻转图片
+    @param[in] srcImage 原始图片
+    @param[in] filpImage 翻转后图片
+    @param[in] nStyle 翻转方式
     */
-    Gdiplus::Image* CMainDlg::FilpImageX(Gdiplus::Image& source);
-
-    /** 垂直翻转图片
-    @param[in] source  要翻转的图片指针
-    */
-    Gdiplus::Image* CMainDlg::FilpImageY(Gdiplus::Image& source);
+    void FilpImage(Gdiplus::Image& srcImage, Gdiplus::Image& filpImage, int nStyle);
 
     /** 克隆图片
-    @param[in] source  要克隆的图片指针
+    @param[in] srcImage 原始图片
+    @param[in] cloneImage 克隆后图片
     */
-    Gdiplus::Image* CMainDlg::CloneImage(Gdiplus::Image& source);
+    void CloneImage(Gdiplus::Image& srcImage, Gdiplus::Image& cloneImage);
 
     /** 折射图片
-    @param[in] source  要折射的图片指针
+    @param[in] srcImage 原始图片
+    @param[in] castImage 折射后图片
     */
-    Gdiplus::Image* CMainDlg::CastImage(Gdiplus::Image& source);
-
-    /** 获取旋转图片的旋转角度
-    @param[in] width  图片的宽
-    @param[in] height 图片的高
-    @param[in] angle  图片的旋转角度
-    */
-    Gdiplus::Rect* CMainDlg::GetRotateRectangle(int width, int height, float angle);
+    void CastImage(Gdiplus::Image& srcImage, Gdiplus::Image& castImage);
    
-    /** 获取文件夹同格式文件
-    @param[in] path   文件夹路径
+    /** 获取文件夹中文件路径
+    @param[in] path 文件夹路径
     @param[out] files 文件路径集合
     @param[in] format 文件格式
     */
-    void CMainDlg::GetAllFormatFiles(const std::string& path, std::vector<std::string>& files, const std::string& format);
+    void GetAllFormatFiles(const std::string& path, std::vector<std::string>& files, const std::string& format);
+
+    /** 设置图片显示到窗体
+    @param[in] objImage 目标图片
+    @param[in] fFator 缩放系数
+    @param[in] zoomEnable 是否缩放:true,不缩放；false，缩放
+    */
+    void SetWindowImage(Gdiplus::Image& objImage, double dFator = 1.0, bool zoomEnable = false);
 
     /** DLG初始化
     */
@@ -136,7 +113,7 @@ private:
 
     /** OK按钮事件
     */
-    LRESULT CMainDlg::OnOK(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnOK(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 
     /** CANCEL按钮事件
     */
@@ -144,43 +121,43 @@ private:
 
     /** 图片插入按钮
     */
-    LRESULT OnBnClickedBtninsert(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnClickedBtnInsert(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 
     /** 图片删除按钮
     */
-    LRESULT OnBnClickedBtndelete(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnClickedBtnDelete(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 
     /** 图片放大按钮
     */
-    LRESULT OnBnClickedBtnpus(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnClickedBtnZoomPlus(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 
     /** 图片缩小按钮
     */
-    LRESULT OnBnClickedBtndec(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnClickedBtnZoomDec(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 
     /** 图片逆时针按钮
     */
-    LRESULT OnBnClickedBtnnagtive(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnClickedBtnRoateNagt(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 
     /** 图片顺时针按钮
     */
-    LRESULT OnBnClickedBtnpostive(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnClickedBtnRoatePost(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 
     /** 图片水平翻转按钮
     */
-    LRESULT OnBnClickedBtnhoriz(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnClickedBtnFlipHoriz(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 
     /** 图片垂直翻转按钮
     */
-    LRESULT OnBnClickedBtnvert(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnClickedBtnFlipVert(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 
     /** 图片克隆按钮
     */
-    LRESULT OnBnClickedBtnclone(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnClickedBtnClone(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 
     /** 图片折射按钮
     */
-    LRESULT OnBnClickedBtncast(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnClickedBtnCast(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 
     /** 输入改变按钮
     */
@@ -192,11 +169,36 @@ private:
 
     /** 前一张按钮
     */
-    LRESULT OnBnClickedBtnprepage(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnClickedBtnPrepage(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 
     /** 后一张按钮
     */
-    LRESULT OnBnClickedBtnnextpage(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnClickedBtnNextpage(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+    /** GDI+内部参数
+    */
+    ULONG_PTR m_gdiplusToken;
+    static Gdiplus::Graphics m_graphics;
+
+    /** 图片路径
+    */
+    std::wstring m_imagePath;
+
+    /** 前一张图片路径
+    */
+    std::vector<std::string> m_fileNameAry;
+
+    /**当前图片索引
+    */
+    size_t m_iCurNumber;
+
+    /** 缩放因子
+    */
+    double m_dFactor;
+
+    /** 旋转因子
+    */
+    int m_nRoate;
 };
 
 

@@ -12,20 +12,29 @@
 
 /** 缩放因子限值
 */
-#define MAX_FATOR   1.0
-#define MIN_FATOR   0.1
+#define MAX_FATOR 1.0
+#define MIN_FATOR 0.1
+
 /** 旋转因子限值
 */
-#define MAX_ROTAT   360
-#define MIN_ROTAT   1
+#define MAX_ROTAT 360
+#define MIN_ROTAT 1
 
+/** 翻转方式
+*/
+enum enumType
+{
+    STYLE_X = 0,
+    STYLE_Y,
+    STYLE_XY
+};
 
 LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 {
     CenterWindow();
-    HICON hIcon = AtlLoadIconImage(IDR_MAINFRAME, LR_DEFAULTCOLOR, ::GetSystemMetrics(SM_CXICON), ::GetSystemMetrics(SM_CYICON));
+    HICON hIcon = ::AtlLoadIconImage(IDR_MAINFRAME, LR_DEFAULTCOLOR, ::GetSystemMetrics(SM_CXICON), ::GetSystemMetrics(SM_CYICON));
     SetIcon(hIcon, TRUE);
-    HICON hIconSmall = AtlLoadIconImage(IDR_MAINFRAME, LR_DEFAULTCOLOR, ::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON));
+    HICON hIconSmall = ::AtlLoadIconImage(IDR_MAINFRAME, LR_DEFAULTCOLOR, ::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON));
     SetIcon(hIconSmall, FALSE);
     // GDI+的初始化配置
     Gdiplus::GdiplusStartupInput gdiplusStartupInput;
@@ -33,38 +42,34 @@ LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam
     // 初始化默认比例及角度
     GetDlgItem(IDC_EDIT_FATOR).SetWindowTextW(_T("0.1"));
     GetDlgItem(IDC_EDIT_ROTATE).SetWindowTextW(_T("30"));
-    GetDlgItem(IDC_STA_F).SetWindowTextW(_T(" scaling:"));
-    GetDlgItem(IDC_STA_R).SetWindowTextW(_T(" angle rotation:"));
+    GetDlgItem(IDC_STA_F).SetWindowTextW(_T(" Scaling:"));
+    GetDlgItem(IDC_STA_R).SetWindowTextW(_T(" Angle Rotation:"));
     return TRUE;
 }
 
-LRESULT CMainDlg::OnBnClickedBtninsert(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+LRESULT CMainDlg::OnClickedBtnInsert(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    DestoryPicture();
-    m_wstrImagePath = _T("");
-    m_strFileNameAry.clear();
+    DestoryImage();
+    m_imagePath = _T("");
+    m_fileNameAry.clear();
 
     TCHAR strFileFilters[1024] = _T("JPG Files(*.jpg)\0*.jpg\0\0");
     CFileDialog selImageDialog(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, strFileFilters, this->m_hWnd);
-    TCHAR temp[1024];
-    ZeroMemory(temp, sizeof(TCHAR) * 1024);
-    selImageDialog.m_ofn.lpstrFile = temp;
+    TCHAR cTemp[1024] = {0};
+    ZeroMemory(cTemp, sizeof(TCHAR) * 1024);
+    selImageDialog.m_ofn.lpstrFile = cTemp;
     selImageDialog.m_ofn.nMaxFile = 1024;
     if (IDOK == selImageDialog.DoModal())
     {
-        m_wstrImagePath = temp;
+        m_imagePath = cTemp;
     }
-    if (!m_wstrImagePath.empty())
+    if (!m_imagePath.empty())
     {
         // 初始化缩放因子
-        m_fFactor = 1.0;
-        m_fRoate = 0.0;
-        ShowPicture(m_wstrImagePath);
-
-        std::wstring strTempPath = ComFunction::GetFilePath(m_wstrImagePath);
-        std::string strFilePath = ComFunction::ConvertWStringToAnsi(strTempPath);
-        GetAllFormatFiles(strFilePath, m_strFileNameAry, ".jpg");
-        std::sort(m_strFileNameAry.begin(), m_strFileNameAry.end());
+        m_dFactor = 1.0;
+        m_nRoate = 0;
+        m_iCurNumber = 0;
+        ShowImage(m_imagePath);
     }
     else
     {
@@ -73,23 +78,22 @@ LRESULT CMainDlg::OnBnClickedBtninsert(WORD /*wNotifyCode*/, WORD /*wID*/, HWND 
     return 0;
 }
 
-LRESULT CMainDlg::OnBnClickedBtndelete(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+LRESULT CMainDlg::OnClickedBtnDelete(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    DestoryPicture();
-    // 清空图片路径
-    m_wstrImagePath = _T("");
+    DestoryImage();
+    m_imagePath = _T("");
     return 0;
 }
 
-LRESULT CMainDlg::OnBnClickedBtnpus(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+LRESULT CMainDlg::OnClickedBtnZoomPlus(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    if (!m_wstrImagePath.empty())
+    if (!m_imagePath.empty())
     {
-        std::wstring wstrTemp;
-        float fTemp = m_fFactor;
-        ::GetDlgItemText(m_hWnd, IDC_EDIT_FATOR, (LPWSTR)wstrTemp.c_str(), wstrTemp.max_size());
-        std::wstring wstrTempBuf(wstrTemp.c_str());
-        if (wstrTempBuf.empty())
+        std::wstring editText;
+        double dFatorBuf = m_dFactor;
+        ::GetDlgItemText(m_hWnd, IDC_EDIT_FATOR, (LPWSTR)editText.c_str(), editText.max_size());
+        std::wstring editTextBuf(editText.c_str());
+        if (editTextBuf.empty())
         {
             if (::MessageBox(m_hWnd, _T("放大比例不能为空！"), _T("tips"), MB_OK) == IDOK)
             {
@@ -97,28 +101,43 @@ LRESULT CMainDlg::OnBnClickedBtnpus(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*h
                 return 0;
             }
         }
-        float nfator = (float)_wtof(wstrTemp.c_str());
-        if (nfator > MAX_FATOR || nfator < MIN_FATOR)
+        double dFator = _wtof(editText.c_str());
+        // 限值判断
+        if (dFator > MAX_FATOR || dFator < MIN_FATOR)
         {
-            TCHAR cTemp[1024];
-            swprintf_s(cTemp, _T("输入的系数必须在%3.1f~%3.1f之间!"), MIN_FATOR, MAX_FATOR);
-            std::wstring wstrTitle(cTemp);
-            if (::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
+            TCHAR cTemp[1024] = {0};
+            ::swprintf_s(cTemp, _T("输入的系数必须在%3.1f~%3.1f之间!"), MIN_FATOR, MAX_FATOR);
+            std::wstring editTitle(cTemp);
+            if (::MessageBox(m_hWnd, (LPWSTR)editTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
             {
                 GetDlgItem(IDC_EDIT_FATOR).SetWindowTextW(_T(""));
                 GetDlgItem(IDC_EDIT_FATOR).SetFocus();
                 return 0;
             }
         }
-        if (m_fFactor < MAX_FATOR)
+        if (m_dFactor < MAX_FATOR)
         {
-            m_fFactor = m_fFactor + nfator;
-            if (m_fFactor > MAX_FATOR)
+            m_dFactor = m_dFactor + dFator;
+            if (m_dFactor > MAX_FATOR)
             {
-                m_fFactor = fTemp;
+                m_dFactor = dFatorBuf;
             }
-            DestoryPicture();
-            ZoomPicture(m_wstrImagePath, m_fFactor);
+            // 图片预处理
+            Gdiplus::Image srcImage(m_imagePath.c_str());
+            int srcWidth = srcImage.GetWidth();
+            int srcHeight = srcImage.GetHeight();
+            int zoomWidth = (int)(srcWidth * m_dFactor);
+            int zoomHeight = (int)(srcHeight * m_dFactor);
+            Gdiplus::Image* pZoomImage = new Gdiplus::Bitmap(zoomWidth, zoomHeight);
+            if (NULL != pZoomImage)
+            {
+                // 图片放大操作
+                ZoomImage(srcImage, *pZoomImage, m_dFactor);
+                DestoryImage();
+                SetWindowImage(*pZoomImage, m_dFactor, true);
+                delete pZoomImage;
+                pZoomImage = NULL;
+            }
         }
         else
         {
@@ -132,15 +151,15 @@ LRESULT CMainDlg::OnBnClickedBtnpus(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*h
     return 0;
 }
 
-LRESULT CMainDlg::OnBnClickedBtndec(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+LRESULT CMainDlg::OnClickedBtnZoomDec(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    if (!m_wstrImagePath.empty())
+    if (!m_imagePath.empty())
     {
-        std::wstring wstrTemp;
-        float fTemp = m_fFactor;
-        ::GetDlgItemText(m_hWnd, IDC_EDIT_FATOR, (LPWSTR)wstrTemp.c_str(), wstrTemp.max_size());
-        std::wstring wstrTempBuf(wstrTemp.c_str());
-        if (wstrTempBuf.empty())
+        std::wstring editText;
+        double dFatorBuf = m_dFactor;
+        ::GetDlgItemText(m_hWnd, IDC_EDIT_FATOR, (LPWSTR)editText.c_str(), editText.max_size());
+        std::wstring editTextBuf(editText.c_str());
+        if (editTextBuf.empty())
         {
             if (::MessageBox(m_hWnd, _T("缩小比例不能为空！"), _T("tips"), MB_OK) == IDOK)
             {
@@ -148,29 +167,45 @@ LRESULT CMainDlg::OnBnClickedBtndec(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*h
                 return 0;
             }
         }
-        float nfator = (float)_wtof(wstrTemp.c_str());
-        if (nfator > MAX_FATOR || nfator < MIN_FATOR)
+        double dFator = _wtof(editTextBuf.c_str());
+        // 限值判断
+        if (dFator > MAX_FATOR || dFator < MIN_FATOR)
         {
-            TCHAR cTemp[1024];
-            swprintf_s(cTemp, _T("输入的系数必须在%3.1f~%3.1f之间!"), MIN_FATOR, MAX_FATOR);
-            std::wstring wstrTitle(cTemp);
-            if (::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
+            TCHAR cTemp[1024] = {0};
+            ::swprintf_s(cTemp, _T("输入的系数必须在%3.1f~%3.1f之间!"), MIN_FATOR, MAX_FATOR);
+            std::wstring editTitle(cTemp);
+            if (::MessageBox(m_hWnd, (LPWSTR)editTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
             {
                 GetDlgItem(IDC_EDIT_FATOR).SetWindowTextW(_T(""));
                 GetDlgItem(IDC_EDIT_FATOR).SetFocus();
                 return 0;
             }
         }
-        if (m_fFactor > MIN_FATOR)
+        if (m_dFactor > MIN_FATOR)
         {
-            m_fFactor = m_fFactor - nfator;
-            if (m_fFactor <= MIN_FATOR)
+            m_dFactor = m_dFactor - dFator;
+            if (m_dFactor <= MIN_FATOR)
             {
-                m_fFactor = fTemp;
+                m_dFactor = dFatorBuf;
                 ::MessageBox(m_hWnd, _T("以当前比例无法在继续缩小"), _T("tips"), MB_OK);
+                return 0;
             }
-            DestoryPicture();
-            ZoomPicture(m_wstrImagePath, m_fFactor);
+            // 图片预处理
+            Gdiplus::Image srcImage(m_imagePath.c_str());
+            int srcWidth = srcImage.GetWidth();
+            int srcHeight = srcImage.GetHeight();
+            int zoomWidth = (int)(srcWidth * dFatorBuf);
+            int zoomHeight = (int)(srcHeight * dFatorBuf);
+            Gdiplus::Image* pZoomImage = new Gdiplus::Bitmap(zoomWidth, zoomHeight);
+            if (NULL != pZoomImage)
+            {
+                // 图片缩小操作
+                ZoomImage(srcImage, *pZoomImage, m_dFactor);
+                DestoryImage();
+                SetWindowImage(*pZoomImage, m_dFactor, true);
+                delete pZoomImage;
+                pZoomImage = NULL;
+            }
         }
     }
     else
@@ -180,14 +215,14 @@ LRESULT CMainDlg::OnBnClickedBtndec(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*h
     return 0;
 }
 
-LRESULT CMainDlg::OnBnClickedBtnnagtive(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+LRESULT CMainDlg::OnClickedBtnRoateNagt(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    if (!m_wstrImagePath.empty())
+    if (!m_imagePath.empty())
     {
-        std::wstring wstrTemp;
-        ::GetDlgItemText(m_hWnd, IDC_EDIT_ROTATE, (LPWSTR)wstrTemp.c_str(), wstrTemp.max_size());
-        std::wstring wstrTempBuf(wstrTemp.c_str());
-        if (wstrTempBuf.empty())
+        std::wstring editText;
+        ::GetDlgItemText(m_hWnd, IDC_EDIT_ROTATE, (LPWSTR)editText.c_str(), editText.max_size());
+        std::wstring editTextBuf(editText.c_str());
+        if (editTextBuf.empty())
         {
             if (::MessageBox(m_hWnd, _T("旋转角度不能为空！"), _T("tips"), MB_OK) == IDOK)
             {
@@ -195,58 +230,39 @@ LRESULT CMainDlg::OnBnClickedBtnnagtive(WORD /*wNotifyCode*/, WORD /*wID*/, HWND
                 return 0;
             }
         }
-        int nRotar = _wtoi(wstrTemp.c_str());
-        if (nRotar > MAX_ROTAT || nRotar < MIN_ROTAT)
+        int nRoate = _wtoi(editText.c_str());
+        if (nRoate > MAX_ROTAT || nRoate < MIN_ROTAT)
         {
-            TCHAR cTemp[1024];
-            swprintf_s(cTemp, _T("输入的角度必须在%d~%d之间!"), MIN_ROTAT, MAX_ROTAT);
-            std::wstring wstrTitle(cTemp);
-            if (::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
+            TCHAR cTemp[1024] = { 0 };
+            ::swprintf_s(cTemp, _T("输入的角度必须在%d~%d之间!"), MIN_ROTAT, MAX_ROTAT);
+            std::wstring editTitle(cTemp);
+            if (::MessageBox(m_hWnd, (LPWSTR)editTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
             {
                 GetDlgItem(IDC_EDIT_ROTATE).SetWindowTextW(_T(""));
                 GetDlgItem(IDC_EDIT_ROTATE).SetFocus();
                 return 0;
             }
         }
-        m_fRoate = m_fRoate - nRotar;
-        Gdiplus::Image* image = new Gdiplus::Image(m_wstrImagePath.c_str());
-        if (NULL != image)
-        {
-            Gdiplus::Image* roteimage = RotateImage(*image, m_fRoate);
-            // 清空
-            DestoryPicture();
-            if (NULL != roteimage)
-            {
-                CRect rect;
-                CRect roterect;
-                int height = roteimage->GetHeight();
-                int width = roteimage->GetWidth();
-                CWindow wnd = GetDlgItem(IDC_PIC);
-                wnd.GetClientRect(&rect);
-                CDC pDc(wnd.GetDC());
-                Gdiplus::Graphics graphics(pDc.m_hDC);
-                // 防止失真
-                SetStretchBltMode(pDc.m_hDC, STRETCH_HALFTONE);
+        m_nRoate = m_nRoate - nRoate;
 
-                // 如果图片的尺寸小于图片控件尺寸 
-                if (width <= rect.Width() && height <= rect.Width())
-                {
-                    roterect = CRect(rect.TopLeft(), CSize(width, height));
-                    graphics.DrawImage(roteimage, roterect.top, roterect.left, roterect.Width(), roterect.Height());
-                }
-                // 如果图片的尺寸大于图片控件的尺寸 
-                else
-                {
-                    float xScale = (float)rect.Width() / (float)width;
-                    float yScale = (float)rect.Height() / (float)height;
-                    float scaleIndex = (xScale <= yScale ? xScale : yScale);
-                    roterect = CRect(rect.TopLeft(), CSize((int)(width*scaleIndex), (int)(height*scaleIndex)));
-                    graphics.DrawImage(roteimage, roterect.top, roterect.left, roterect.Width(), roterect.Height());
-                    ReleaseDC(pDc);
-                }
-            }
-            delete image;
-            image = NULL;
+        // 图片预处理
+        Gdiplus::Image srcImage(m_imagePath.c_str());
+        int srcWidth = srcImage.GetWidth();
+        int srcHeight = srcImage.GetHeight();
+        double fRadian = m_nRoate * 3.1415926 / 180;
+        double fCos = cos(fRadian);
+        double fSin = sin(fRadian);
+        int roateWidth = (int)(max(abs(srcWidth * fCos - srcHeight * fSin), abs(srcWidth * fCos + srcHeight * fSin)));
+        int roateHeight = (int)(max(abs(srcWidth * fSin - srcHeight * fCos), abs(srcWidth * fSin + srcHeight * fCos)));
+        Gdiplus::Image* pRoateImage = new Gdiplus::Bitmap(roateWidth, roateHeight);
+        if (NULL != pRoateImage)
+        {
+            //图片逆方向旋转
+            RotateImage(srcImage, *pRoateImage, m_nRoate);
+            DestoryImage();
+            SetWindowImage(*pRoateImage);
+            delete pRoateImage;
+            pRoateImage = NULL;
         }
     }
     else
@@ -256,14 +272,14 @@ LRESULT CMainDlg::OnBnClickedBtnnagtive(WORD /*wNotifyCode*/, WORD /*wID*/, HWND
     return 0;
 }
 
-LRESULT CMainDlg::OnBnClickedBtnpostive(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+LRESULT CMainDlg::OnClickedBtnRoatePost(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    if (!m_wstrImagePath.empty())
+    if (!m_imagePath.empty())
     {
-        std::wstring wstrTemp;
-        ::GetDlgItemText(m_hWnd, IDC_EDIT_ROTATE, (LPWSTR)wstrTemp.c_str(), wstrTemp.max_size());
-        std::wstring wstrTempBuf(wstrTemp.c_str());
-        if (wstrTempBuf.empty())
+        std::wstring editText;
+        ::GetDlgItemText(m_hWnd, IDC_EDIT_ROTATE, (LPWSTR)editText.c_str(), editText.max_size());
+        std::wstring editTextBuf(editText.c_str());
+        if (editTextBuf.empty())
         {
             if (::MessageBox(m_hWnd, _T("旋转角度不能为空！"), _T("Tips"), MB_OK) == IDOK)
             {
@@ -271,61 +287,38 @@ LRESULT CMainDlg::OnBnClickedBtnpostive(WORD /*wNotifyCode*/, WORD /*wID*/, HWND
                 return 0;
             }
         }
-        int nRotar = _wtoi(wstrTemp.c_str());
+        int nRotar = _wtoi(editText.c_str());
         if (nRotar > MAX_ROTAT || nRotar < MIN_ROTAT)
         {
-            TCHAR cTemp[1024];
+            TCHAR cTemp[1024] = {0};
             swprintf_s(cTemp, _T("输入的角度必须在%d~%d之间!"), MIN_ROTAT, MAX_ROTAT);
-            std::wstring wstrTitle(cTemp);
-            if (::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
+            std::wstring editTitle(cTemp);
+            if (::MessageBox(m_hWnd, (LPWSTR)editTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
             {
                 GetDlgItem(IDC_EDIT_ROTATE).SetWindowTextW(_T(""));
                 GetDlgItem(IDC_EDIT_ROTATE).SetFocus();
                 return 0;
             }
         }
-        m_fRoate = m_fRoate + nRotar;
-        Gdiplus::Image* image = new Gdiplus::Image(m_wstrImagePath.c_str());
-        if (NULL != image)
+        m_nRoate = m_nRoate + nRotar;
+        //图片预处理
+        Gdiplus::Image srcImage(m_imagePath.c_str());
+        int srcWidth = srcImage.GetWidth();
+        int srcHeight = srcImage.GetHeight();
+        double fRadian = m_nRoate * 3.1415926 / 180;
+        double fCos = cos(fRadian);
+        double fSin = sin(fRadian);
+        int roateWidth = (int)(max(abs(srcWidth * fCos - srcHeight * fSin), abs(srcWidth * fCos + srcHeight * fSin)));
+        int roateHeight = (int)(max(abs(srcWidth * fSin - srcHeight * fCos), abs(srcWidth * fSin + srcHeight * fCos)));
+        Gdiplus::Image* pRoateImage = new Gdiplus::Bitmap(roateWidth, roateHeight);
+        if (NULL != pRoateImage)
         {
-            Gdiplus::Image* roteimage = RotateImage(*image, m_fRoate);
-            // 清空
-            DestoryPicture();
-            if (NULL != roteimage)
-            {
-                CRect rect;
-                CRect roterect;
-                int height = roteimage->GetHeight();
-                int width = roteimage->GetWidth();
-
-                CWindow wnd = GetDlgItem(IDC_PIC);
-                wnd.GetClientRect(&rect);
-                CDC pDc(wnd.GetDC());
-                Gdiplus::Graphics graphics(pDc.m_hDC);
-                // 防止失真
-                SetStretchBltMode(pDc.m_hDC, STRETCH_HALFTONE);
-
-                // 如果图片的尺寸小于图片控件尺寸
-                if (width <= rect.Width() && height <= rect.Width())
-                {
-                    roterect = CRect(rect.TopLeft(), CSize(width, height));
-                    graphics.DrawImage(roteimage, roterect.top, roterect.left, roterect.Width(), roterect.Height());
-                }
-                // 如果图片的尺寸大于图片控件的尺寸 
-                else
-                {
-                    float xScale = (float)rect.Width() / (float)width;
-                    float yScale = (float)rect.Height() / (float)height;
-                    float scaleIndex = (xScale <= yScale ? xScale : yScale);
-                    roterect = CRect(rect.TopLeft(), CSize((int)(width*scaleIndex), (int)(height*scaleIndex)));
-                    graphics.DrawImage(roteimage, roterect.top, roterect.left, roterect.Width(), roterect.Height());
-                    ReleaseDC(pDc);
-                }
-                delete roteimage;
-                roteimage = NULL;
-            }
-            delete image;
-            image = NULL;
+            //图片顺方向旋转
+            RotateImage(srcImage, *pRoateImage, m_nRoate);
+            DestoryImage();
+            SetWindowImage(*pRoateImage);
+            delete pRoateImage;
+            pRoateImage = NULL;
         }
     }
     else
@@ -335,51 +328,21 @@ LRESULT CMainDlg::OnBnClickedBtnpostive(WORD /*wNotifyCode*/, WORD /*wID*/, HWND
     return 0;
 }
 
-LRESULT CMainDlg::OnBnClickedBtnhoriz(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+LRESULT CMainDlg::OnClickedBtnFlipHoriz(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    if (!m_wstrImagePath.empty())
+    if (!m_imagePath.empty())
     {
-        Gdiplus::Image* image = new Gdiplus::Image(m_wstrImagePath.c_str());
-        if (NULL != image)
+        Gdiplus::Image srcImage(m_imagePath.c_str());
+        int srcWidth = srcImage.GetWidth();
+        int srcHeight = srcImage.GetHeight();
+        Gdiplus::Image* pHorizImage = new Gdiplus::Bitmap(srcWidth, srcHeight);
+        if (NULL != pHorizImage)
         {
-            Gdiplus::Image* roteimage = FilpImageX(*image);
-            // 清空
-            DestoryPicture();
-            if (NULL != roteimage)
-            {
-                CRect rect;
-                CRect filprect;
-                int height = roteimage->GetHeight();
-                int width = roteimage->GetWidth();
-
-                CWindow wnd = GetDlgItem(IDC_PIC);
-                wnd.GetClientRect(&rect);
-                CDC pDc(wnd.GetDC());
-                Gdiplus::Graphics graphics(pDc.m_hDC);
-                // 防止失真
-                SetStretchBltMode(pDc.m_hDC, STRETCH_HALFTONE);
-
-                // 如果图片的尺寸小于图片控件尺寸
-                if (width <= rect.Width() && height <= rect.Width())
-                {
-                    filprect = CRect(rect.TopLeft(), CSize(width, height));
-                    graphics.DrawImage(roteimage, filprect.top, filprect.left, filprect.Width(), filprect.Height());
-                }
-                //如果图片的尺寸大于图片控件的尺寸 
-                else
-                {
-                    float xScale = (float)rect.Width() / (float)width;
-                    float yScale = (float)rect.Height() / (float)height;
-                    float scaleIndex = (xScale <= yScale ? xScale : yScale);
-                    filprect = CRect(rect.TopLeft(), CSize((int)(width*scaleIndex), (int)(height*scaleIndex)));
-                    graphics.DrawImage(roteimage, filprect.top, filprect.left, filprect.Width(), filprect.Height());
-                    ReleaseDC(pDc);
-                }
-                delete roteimage;
-                roteimage = NULL;
-            }
-            delete image;
-            image = NULL;
+            FilpImage(srcImage, *pHorizImage, STYLE_X);
+            DestoryImage();
+            SetWindowImage(*pHorizImage);
+            delete pHorizImage;
+            pHorizImage = NULL;
         }
     }
     else
@@ -390,51 +353,21 @@ LRESULT CMainDlg::OnBnClickedBtnhoriz(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /
 
 }
 
-LRESULT CMainDlg::OnBnClickedBtnvert(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+LRESULT CMainDlg::OnClickedBtnFlipVert(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    if (!m_wstrImagePath.empty())
+    if (!m_imagePath.empty())
     {
-        Gdiplus::Image* image = new Gdiplus::Image(m_wstrImagePath.c_str());
-        if (NULL != image)
+        Gdiplus::Image srcImage(m_imagePath.c_str());
+        int srcWidth = srcImage.GetWidth();
+        int srcHeight = srcImage.GetHeight();
+        Gdiplus::Image* pVertImage = new Gdiplus::Bitmap(srcWidth, srcHeight);
+        if (NULL != pVertImage)
         {
-            Gdiplus::Image* roteimage = FilpImageY(*image);
-            //清空
-            DestoryPicture();
-            if (NULL != roteimage)
-            {
-                CRect rect;
-                CRect filprect;
-                int height = roteimage->GetHeight();
-                int width = roteimage->GetWidth();
-
-                CWindow wnd = GetDlgItem(IDC_PIC);
-                wnd.GetClientRect(&rect);
-                CDC pDc(wnd.GetDC());
-                Gdiplus::Graphics graphics(pDc.m_hDC);
-                // 防止失真
-                SetStretchBltMode(pDc.m_hDC, STRETCH_HALFTONE);
-
-                // 如果图片的尺寸小于图片控件尺寸 
-                if (width <= rect.Width() && height <= rect.Width())
-                {
-                    filprect = CRect(rect.TopLeft(), CSize(width, height));
-                    graphics.DrawImage(roteimage, filprect.top, filprect.left, filprect.Width(), filprect.Height());
-                }
-                // 如果图片的尺寸大于图片控件的尺寸 
-                else
-                {
-                    float xScale = (float)rect.Width() / (float)width;
-                    float yScale = (float)rect.Height() / (float)height;
-                    float scaleIndex = (xScale <= yScale ? xScale : yScale);
-                    filprect = CRect(rect.TopLeft(), CSize((int)(width*scaleIndex), (int)(height*scaleIndex)));
-                    graphics.DrawImage(roteimage, filprect.top, filprect.left, filprect.Width(), filprect.Height());
-                    ReleaseDC(pDc);
-                }
-                delete roteimage;
-                roteimage = NULL;
-            }
-            delete image;
-            image = NULL;
+            FilpImage(srcImage, *pVertImage, STYLE_Y);
+            DestoryImage();
+            SetWindowImage(*pVertImage);
+            delete pVertImage;
+            pVertImage = NULL;
         }
     }
     else
@@ -444,52 +377,21 @@ LRESULT CMainDlg::OnBnClickedBtnvert(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*
     return 0;
 }
 
-LRESULT CMainDlg::OnBnClickedBtnclone(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+LRESULT CMainDlg::OnClickedBtnClone(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    if (!m_wstrImagePath.empty())
+    if (!m_imagePath.empty())
     {
-
-        Gdiplus::Image* image = new Gdiplus::Image(m_wstrImagePath.c_str());
-        if (NULL != image)
+        Gdiplus::Image srcImage(m_imagePath.c_str());
+        int srcHeight = srcImage.GetHeight();
+        int srcWidth = srcImage.GetWidth();
+        Gdiplus::Image* pCloneImage = new Gdiplus::Bitmap(srcWidth, srcHeight);
+        if (NULL != pCloneImage)
         {
-            Gdiplus::Image* roteimage = CloneImage(*image);
-            // 清空
-            DestoryPicture();
-            if (NULL != roteimage)
-            {
-                CRect rect;
-                CRect filprect;
-                int height = roteimage->GetHeight();
-                int width = roteimage->GetWidth();
-
-                CWindow wnd = GetDlgItem(IDC_PIC);
-                wnd.GetClientRect(&rect);
-                CDC pDc(wnd.GetDC());
-                Gdiplus::Graphics graphics(pDc.m_hDC);
-                // 防止失真
-                SetStretchBltMode(pDc.m_hDC, STRETCH_HALFTONE);
-
-                // 如果图片的尺寸小于图片控件尺寸
-                if (width <= rect.Width() && height <= rect.Width())
-                {
-                    filprect = CRect(rect.TopLeft(), CSize(width, height));
-                    graphics.DrawImage(roteimage, filprect.top, filprect.left, filprect.Width(), filprect.Height());
-                }
-                // 如果图片的尺寸大于图片控件的尺寸 
-                else
-                {
-                    float xScale = (float)rect.Width() / (float)width;
-                    float yScale = (float)rect.Height() / (float)height;
-                    float scaleIndex = (xScale <= yScale ? xScale : yScale);
-                    filprect = CRect(rect.TopLeft(), CSize((int)(width*scaleIndex), (int)(height*scaleIndex)));
-                    graphics.DrawImage(roteimage, filprect.top, filprect.left, filprect.Width(), filprect.Height());
-                    ReleaseDC(pDc);
-                }
-                delete roteimage;
-                roteimage = NULL;
-            }
-            delete image;
-            image = NULL;
+            CloneImage(srcImage, *pCloneImage);
+            DestoryImage();
+            SetWindowImage(*pCloneImage);
+            delete pCloneImage;
+            pCloneImage = NULL;
         }
     }
     else
@@ -499,51 +401,21 @@ LRESULT CMainDlg::OnBnClickedBtnclone(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /
     return 0;
 }
 
-LRESULT CMainDlg::OnBnClickedBtncast(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+LRESULT CMainDlg::OnClickedBtnCast(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    if (!m_wstrImagePath.empty())
+    if (!m_imagePath.empty())
     {
-        Gdiplus::Image* image = new Gdiplus::Image(m_wstrImagePath.c_str());
-        if (NULL != image)
+        Gdiplus::Image srcImage(m_imagePath.c_str());
+        int srcHeight = srcImage.GetHeight();
+        int srcWidth = srcImage.GetWidth();
+        Gdiplus::Image* pCastImage = new Gdiplus::Bitmap(srcWidth * 2, srcHeight); 
+        if (NULL != pCastImage)
         {
-            Gdiplus::Image* roteimage = CastImage(*image);
-            // 清空
-            DestoryPicture();
-            if (NULL != roteimage)
-            {
-                CRect rect;
-                CRect filprect;
-                int height = roteimage->GetHeight();
-                int width = roteimage->GetWidth();
-
-                CWindow wnd = GetDlgItem(IDC_PIC);
-                wnd.GetClientRect(&rect);
-                CDC pDc(wnd.GetDC());
-                Gdiplus::Graphics graphics(pDc.m_hDC);
-                //防止失真
-                SetStretchBltMode(pDc.m_hDC, STRETCH_HALFTONE);
-
-                // 如果图片的尺寸小于图片控件尺寸
-                if (width <= rect.Width() && height <= rect.Width())
-                {
-                    filprect = CRect(rect.TopLeft(), CSize(width, height));
-                    graphics.DrawImage(roteimage, filprect.top, filprect.left, filprect.Width(), filprect.Height());
-                }
-                // 如果图片的尺寸大于图片控件的尺寸 
-                else
-                {
-                    float xScale = (float)rect.Width() / (float)width;
-                    float yScale = (float)rect.Height() / (float)height;
-                    float scaleIndex = (xScale <= yScale ? xScale : yScale);
-                    filprect = CRect(rect.TopLeft(), CSize((int)(width*scaleIndex), (int)(height*scaleIndex)));
-                    graphics.DrawImage(roteimage, filprect.top, filprect.left, filprect.Width(), filprect.Height());
-                    ReleaseDC(pDc);
-                }
-                delete roteimage;
-                roteimage = NULL;
-            }
-            delete image;
-            image = NULL;
+            CastImage(srcImage, *pCastImage);
+            DestoryImage();
+            SetWindowImage(*pCastImage);
+            delete pCastImage;
+            pCastImage = NULL;
         }
     }
     else
@@ -553,234 +425,181 @@ LRESULT CMainDlg::OnBnClickedBtncast(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*
     return 0;
 }
 
-void CMainDlg::ShowPicture(const std::wstring& pFilepath)
+void CMainDlg::ShowImage(const std::wstring& srcImagePath)
 {
-    CWindow wnd = GetDlgItem(IDC_PIC);
-    CDC pDc(wnd.GetDC());
+    CWindow wndPic = GetDlgItem(IDC_PIC);
+    CDC pDc(wndPic.GetDC());
+    Gdiplus::Graphics grapWindow(pDc.m_hDC);
+    Gdiplus::Image srcImage(srcImagePath.c_str());
 
-    Gdiplus::Graphics graphics(pDc.m_hDC);
-    Gdiplus::Image image(pFilepath.c_str()); 
-    int height = image.GetHeight();
-    int width = image.GetWidth();
-
-    CRect rect;
-    CRect fatorect;
-    wnd.GetClientRect(&rect);
-    float xScale = (float)rect.Width() / (float)width;
-    float yScale = (float)rect.Height() / (float)height;
-    float scaleIndex = (xScale <= yScale ? xScale : yScale);
-    fatorect = CRect(rect.TopLeft(), CSize((int)(width*scaleIndex), (int)(height*scaleIndex)));
-    graphics.DrawImage(&image, 0, 0, fatorect.Width(), fatorect.Height());
+    CRect windowRect;
+    CRect imageRect;
+    wndPic.GetClientRect(&windowRect);
+    int srcHeight = srcImage.GetHeight();
+    int srcWidth = srcImage.GetWidth();
+    double xScale = (double)windowRect.Width() / (double)srcWidth;
+    double yScale = (double)windowRect.Height() / (double)srcHeight;
+    double scaleIndex = (xScale <= yScale ? xScale : yScale);
+    imageRect = CRect(windowRect.TopLeft(), CSize((int)(srcWidth * scaleIndex), (int)(srcHeight * scaleIndex)));
+    grapWindow.DrawImage(&srcImage, 0, 0, imageRect.Width(), imageRect.Height());
     ReleaseDC(pDc);
 }
 
-void CMainDlg::DestoryPicture()
+void CMainDlg::DestoryImage()
 {
-    CWindow wnd = GetDlgItem(IDC_PIC);
-    CRect rect;
-    wnd.GetClientRect(&rect);
-    CDC pDc(wnd.GetDC());
-    pDc.FillSolidRect(rect.left, rect.top, rect.Width(), rect.Height(), RGB(240, 240, 240));
+    CWindow wndPic = GetDlgItem(IDC_PIC);
+    CRect windowRect;
+    wndPic.GetClientRect(&windowRect);
+    CDC pDc(wndPic.GetDC());
+    pDc.FillSolidRect(windowRect.left, windowRect.top, windowRect.Width(), windowRect.Height(), RGB(240, 240, 240));
     ReleaseDC(pDc);
 }
 
-void CMainDlg::ZoomPicture(const std::wstring& pFilepath, const float fFator)
+void CMainDlg::ZoomImage(Gdiplus::Image& srcImage, Gdiplus::Image& zoomImage, double fFator)
 {
-    CRect rect;
-    CRect fatorrect;
-    Gdiplus::Image* image = new Gdiplus::Image(pFilepath.c_str());
-    if (NULL != image)
+    int srcWidth = srcImage.GetWidth();
+    int srcHeight = srcImage.GetHeight();
+    int zoomWidth = (int)(srcWidth * fFator);
+    int zoomHeight = (int)(srcHeight * fFator);
+    Gdiplus::Graphics grapImage(&zoomImage);
+    Gdiplus::Image* pTempImage = srcImage.Clone();
+    if (NULL != pTempImage)
     {
-        int height = image->GetHeight();
-        int width = image->GetWidth();
-        CWindow wnd = GetDlgItem(IDC_PIC);
-        wnd.GetClientRect(&rect);
-        CDC pDc(wnd.GetDC());
-        Gdiplus::Graphics graphics(pDc.m_hDC);
-        // 防止失真
-        SetStretchBltMode(pDc.m_hDC, STRETCH_HALFTONE);
+        Gdiplus::Matrix matrix;
+        grapImage.GetTransform(&matrix);
+        grapImage.DrawImage(pTempImage, Gdiplus::Rect(0, 0, (int)zoomWidth, (int)zoomHeight));
+        delete pTempImage;
+        pTempImage = NULL;
+    }
+}
 
-        // 图片的尺寸小于图片控件尺寸
-        if (width <= rect.Width() && height <= rect.Width())
+void CMainDlg::RotateImage(Gdiplus::Image& srcImage, Gdiplus::Image& roateImage, int nRoate)
+{
+    int srcWidth = srcImage.GetWidth();
+    int srcHeight = srcImage.GetHeight();
+    double fRadian = nRoate * 3.1415926 / 180;
+    double fCos = cos(fRadian);
+    double fSin = sin(fRadian);
+    int roateWidth = (int)(max(abs(srcWidth * fCos - srcHeight * fSin), abs(srcWidth * fCos + srcHeight * fSin)));
+    int roateHeight = (int)(max(abs(srcWidth * fSin - srcHeight * fCos), abs(srcWidth * fSin + srcHeight * fCos)));
+
+    Gdiplus::Graphics grapImage(&roateImage);
+    Gdiplus::Point* centerPoint = new Gdiplus::Point(roateWidth / 2, roateHeight / 2);
+    if (NULL != centerPoint)
+    {
+        grapImage.TranslateTransform((Gdiplus::REAL)centerPoint->X, (Gdiplus::REAL)centerPoint->Y);
+        grapImage.RotateTransform((Gdiplus::REAL)nRoate);
+        grapImage.TranslateTransform(-(Gdiplus::REAL)centerPoint->X, -(Gdiplus::REAL)centerPoint->Y);
+        Gdiplus::Point* roatePoint = new Gdiplus::Point((roateWidth - srcWidth) / 2, (roateHeight - srcHeight) / 2);
+        if (NULL != roatePoint)
         {
-            fatorrect = CRect(rect.TopLeft(), CSize((int)(width * fFator), (int)(height * fFator)));
-            graphics.DrawImage(image, fatorrect.top, fatorrect.left, fatorrect.Width(), fatorrect.Height());
+            grapImage.DrawImage(&srcImage, roatePoint->X, roatePoint->Y, srcWidth, srcHeight);
+            // 重至绘图的所有变换
+            grapImage.ResetTransform();
+            grapImage.Save();
+            delete roatePoint;
+            roatePoint = NULL;
         }
-        // 图片的尺寸大于图片控件的尺寸 
-        else
+        delete centerPoint;
+        centerPoint = NULL;
+    }
+}
+
+void CMainDlg::FilpImage(Gdiplus::Image& srcImage, Gdiplus::Image& filpImage, int nStyle)
+{
+    int srcWidth = srcImage.GetWidth();
+    int srcHeight = srcImage.GetHeight();
+    Gdiplus::Graphics grapImage(&filpImage);
+    Gdiplus::Image* pTempImage = srcImage.Clone();
+    if (NULL != pTempImage)
+    {
+        switch (nStyle)
         {
-            float xScale = (float)rect.Width() / (float)width;
-            float yScale = (float)rect.Height() / (float)height;
-            float scaleIndex = (xScale <= yScale ? xScale : yScale);
-            fatorrect = CRect(rect.TopLeft(), CSize((int)(width * scaleIndex * fFator), (int)(height * scaleIndex * fFator)));
-            graphics.DrawImage(image, fatorrect.top, fatorrect.left, fatorrect.Width(), fatorrect.Height());
-            ReleaseDC(pDc);
+            case STYLE_X:
+                pTempImage->RotateFlip(Gdiplus::RotateNoneFlipX);
+                break;
+            case STYLE_Y:
+                pTempImage->RotateFlip(Gdiplus::RotateNoneFlipY);
+                break;
+            case STYLE_XY:
+                pTempImage->RotateFlip(Gdiplus::RotateNoneFlipXY);
+                break;
+            default:
+                break;
         }
+        Gdiplus::Matrix matrix;
+        grapImage.GetTransform(&matrix);
+        grapImage.DrawImage(pTempImage, Gdiplus::Rect(0, 0, srcWidth, srcHeight));
+        delete pTempImage;
+        pTempImage = NULL;
     }
-    delete image;
-    image = NULL;
 }
 
-Gdiplus::Image* CMainDlg::RotateImage(Gdiplus::Image& source,  float fRoate)
+void CMainDlg::CloneImage(Gdiplus::Image& srcImage, Gdiplus::Image& cloneImage)
 {
-    float fAngle = (float)((int)fRoate % 360);
-    int srcWidth = source.GetWidth();
-    int srcHeight = source.GetHeight();
-    // 图像旋转之后所占区域宽和高
-    Gdiplus::Rect* rotateRec = GetRotateRectangle(srcWidth, srcHeight, fAngle);
-    int rotateWidth = 0;
-    int rotateHeight = 0;
-    if (NULL != rotateRec)
-    {
-        rotateWidth = rotateRec->Width;
-        rotateHeight = rotateRec->Height;
-    }
-    // 定义画布大小
-    Gdiplus::Bitmap* pImageScale = new Gdiplus::Bitmap(rotateWidth, rotateHeight);
-    if (NULL != pImageScale)
-    {
-        Gdiplus::Graphics graphics(pImageScale);
-        Gdiplus::Point* centerPoint = new Gdiplus::Point(rotateWidth / 2, rotateHeight / 2);
-        if (NULL != centerPoint)
-        {
-            graphics.TranslateTransform((Gdiplus::REAL)centerPoint->X, (Gdiplus::REAL)centerPoint->Y);
-            graphics.RotateTransform(fAngle);
-            graphics.TranslateTransform(-(Gdiplus::REAL)centerPoint->X, -(Gdiplus::REAL)centerPoint->Y);
-            Gdiplus::Point* offset = new Gdiplus::Point((rotateWidth - srcWidth) / 2, (rotateHeight - srcHeight) / 2);
-            if (NULL != offset)
-            {
-                graphics.DrawImage(&source, offset->X, offset->Y, srcWidth, srcHeight);
-                // 重至绘图的所有变换
-                graphics.ResetTransform();
-                graphics.Save();
-                delete offset;
-                offset = NULL;
-            }
-            delete centerPoint;
-            centerPoint = NULL;
-        }
-    }
-    return pImageScale;
-}
-
-Gdiplus::Rect* CMainDlg::GetRotateRectangle(int width, int height, float angle)
-{
-    float radian = (float)(angle * 3.1415926 / 180.0);
-    float fcos = cos(radian);
-    float fsin = sin(radian);
-    int newWidth = (int)(max(abs(width * fcos - height * fsin), abs(width * fcos + height * fsin)));
-    int newHeight = (int)(max(abs(width * fsin - height * fcos), abs(width * fsin + height * fcos)));
-    // 旋转后的图片大小
-    return new Gdiplus::Rect(0, 0, newWidth, newHeight);
-}
-
-Gdiplus::Image* CMainDlg::FilpImageX(Gdiplus::Image& source)
-{
-    int width = source.GetWidth();
-    int height = source.GetHeight();
-    // 水平翻转
-    Gdiplus::Matrix matrix;
-    Gdiplus::Graphics graphics(&source);
-    Gdiplus::Image* Filpimge = source.Clone();
-    if (NULL != Filpimge)
-    {
-        Filpimge->RotateFlip(Gdiplus::RotateNoneFlipX);
-    }
-    return Filpimge;
-}
-
-Gdiplus::Image* CMainDlg::FilpImageY(Gdiplus::Image& source)
-{
-    int width = source.GetWidth();
-    int height = source.GetHeight();
-    // 垂直翻转
-    Gdiplus::Matrix matrix;
-    Gdiplus::Graphics graphics(&source);
-    Gdiplus::Image* Filpimge = source.Clone();
-    if (NULL != Filpimge)
-    {
-        Filpimge->RotateFlip(Gdiplus::RotateNoneFlipY);
-    }
-    return Filpimge;
-}
-
-Gdiplus::Image* CMainDlg::CloneImage(Gdiplus::Image& source)
-{
-    int height = source.GetHeight();
-    int width = source.GetWidth();
+    int srcHeight = srcImage.GetHeight();
+    int srcWidth = srcImage.GetWidth();
     // 实现局部克隆
-    Gdiplus::Image* scrBit = new Gdiplus::Bitmap(width, height);
-    if (NULL != scrBit)
+    Gdiplus::Bitmap* srcTempImage = new Gdiplus::Bitmap(srcWidth, srcHeight);
+    if (NULL != srcTempImage)
     {
-        Gdiplus::Bitmap* scrBitTemp = new Gdiplus::Bitmap(width, height);
-        if (NULL != scrBitTemp)
-        {
-             scrBitTemp = (Gdiplus::Bitmap*)&source;
-             Gdiplus::Rect rect[4];
-             rect[0] = Gdiplus::Rect(0, 0, width / 2, height / 2);
-             rect[1] = Gdiplus::Rect(width / 2, 0, width / 2, height / 2);
-             rect[2] = Gdiplus::Rect(0, height / 2, width / 2, height / 2);
-             rect[3] = Gdiplus::Rect(width / 2, height / 2, width / 2, height / 2);
+        srcTempImage = (Gdiplus::Bitmap*)&srcImage;
+        Gdiplus::Rect rect[4];
+        rect[0] = Gdiplus::Rect(0, 0, srcWidth / 2, srcHeight / 2);
+        rect[1] = Gdiplus::Rect(srcWidth / 2, 0, srcWidth / 2, srcHeight / 2);
+        rect[2] = Gdiplus::Rect(0, srcHeight / 2, srcWidth / 2, srcHeight / 2);
+        rect[3] = Gdiplus::Rect(srcWidth / 2, srcHeight / 2, srcWidth / 2, srcHeight / 2);
 
-             // 把原图像分为分四块克隆  
-             Gdiplus::Bitmap *scrBitmap[4];
-             scrBitmap[0] = scrBitTemp->Clone(rect[0], PixelFormatDontCare);
-             scrBitmap[1] = scrBitTemp->Clone(rect[1], PixelFormatDontCare);
-             scrBitmap[2] = scrBitTemp->Clone(rect[2], PixelFormatDontCare);
-             scrBitmap[3] = scrBitTemp->Clone(rect[3], PixelFormatDontCare);
+        // 把原图像分为分四块克隆
+        Gdiplus::Bitmap* scrBitmap[4];
+        scrBitmap[0] = srcTempImage->Clone(rect[0], PixelFormatDontCare);
+        scrBitmap[1] = srcTempImage->Clone(rect[1], PixelFormatDontCare);
+        scrBitmap[2] = srcTempImage->Clone(rect[2], PixelFormatDontCare);
+        scrBitmap[3] = srcTempImage->Clone(rect[3], PixelFormatDontCare);
 
-             // 绘图  
-             Gdiplus::Graphics graphics(scrBit);
-             graphics.DrawImage(scrBitmap[0], Gdiplus::Rect(0, 0, width / 2, height / 2));
-             graphics.DrawImage(scrBitmap[1], Gdiplus::Rect(width / 2 + 10, 0, width / 2, height / 2));
-             graphics.DrawImage(scrBitmap[2], Gdiplus::Rect(0, height / 2 + 10, width / 2, height / 2));
-             graphics.DrawImage(scrBitmap[3], Gdiplus::Rect(width / 2 + 10, height / 2 + 10, width / 2, height / 2));
-             graphics.ResetTransform();
-             graphics.Save();
-        }
+        // 绘图
+        Gdiplus::Graphics grapImage(&cloneImage);
+        grapImage.DrawImage(scrBitmap[0], Gdiplus::Rect(0, 0, srcWidth / 2, srcHeight / 2));
+        grapImage.DrawImage(scrBitmap[1], Gdiplus::Rect(srcWidth / 2 + 10, 0, srcWidth / 2, srcHeight / 2));
+        grapImage.DrawImage(scrBitmap[2], Gdiplus::Rect(0, srcHeight / 2 + 10, srcWidth / 2, srcHeight / 2));
+        grapImage.DrawImage(scrBitmap[3], Gdiplus::Rect(srcWidth / 2 + 10, srcHeight / 2 + 10, srcWidth / 2, srcHeight / 2));
+        grapImage.ResetTransform();
+        grapImage.Save();
     }
-    return scrBit;
 }
 
-Gdiplus::Image* CMainDlg::CastImage(Gdiplus::Image& source)
+void CMainDlg::CastImage(Gdiplus::Image& srcImage, Gdiplus::Image& castImage)
 {
-    int left = 0;
-    int top = 700;
-    int height = source.GetHeight();
-    int width = source.GetWidth();
+    int castLeft = 0;
+    int CastTop = 700;
+    int srcHeight = srcImage.GetHeight();
+    int srcWidth = srcImage.GetWidth();
+    Gdiplus::Graphics grapIamge(&castImage);
+    grapIamge.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
 
-    // 定义画布
-    Gdiplus::Image* scrImage = new Gdiplus::Bitmap(width*2, height);
-    if (NULL != scrImage)
-    {
-        Gdiplus::Graphics graphics(scrImage);
-        graphics.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
+    // 正面投射
+    Gdiplus::Point desFace[] = {
+        Gdiplus::Point(castLeft, CastTop),
+        Gdiplus::Point(castLeft + srcWidth, CastTop),
+        Gdiplus::Point(castLeft, CastTop + srcWidth),
+    };
+    grapIamge.DrawImage(&srcImage, desFace, 3);
 
-        // 正面投射
-        Gdiplus::Point desFace[] = {
-            Gdiplus::Point(left, top),
-            Gdiplus::Point(left + width, top),
-            Gdiplus::Point(left, top + width),
-        };
-        graphics.DrawImage(&source, desFace, 3);
+    // 上面投射
+    Gdiplus::Point destTop[] = {
+        Gdiplus::Point(castLeft + srcWidth / 2, CastTop - srcWidth / 2),
+        Gdiplus::Point(castLeft + srcWidth / 2 + srcWidth, CastTop - srcWidth / 2),
+        Gdiplus::Point(castLeft, CastTop),
+    };
+    grapIamge.DrawImage(&srcImage, destTop, 3);
 
-        // 上面投射  
-        Gdiplus::Point destTop[] = {
-            Gdiplus::Point(left + width / 2, top - width / 2),
-            Gdiplus::Point(left + width / 2 + width, top - width / 2),
-            Gdiplus::Point(left, top),
-        };
-        graphics.DrawImage(&source, destTop, 3);
-
-        // 侧面投射  
-        Gdiplus::Point desRight[] = {
-            Gdiplus::Point(left + width, top),
-            Gdiplus::Point(left + width / 2 + width, top - width / 2),
-            Gdiplus::Point(left + width, top + width)
-        };
-        graphics.DrawImage(&source, desRight, 3);
-    }
-    return scrImage;
+    // 侧面投射
+    Gdiplus::Point desRight[] = {
+        Gdiplus::Point(castLeft + srcWidth, CastTop),
+        Gdiplus::Point(castLeft + srcWidth / 2 + srcWidth, CastTop - srcWidth / 2),
+        Gdiplus::Point(castLeft + srcWidth, CastTop + srcWidth)
+    };
+    grapIamge.DrawImage(&srcImage, desRight, 3);
 }
 
 LRESULT CMainDlg::OnAppAbout(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
@@ -804,15 +623,14 @@ LRESULT CMainDlg::OnCancel(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOO
 
 LRESULT CMainDlg::OnEnChangeEditFator(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    std::wstring wstrTemp;
-    float fTemp = m_fFactor;
-    ::GetDlgItemText(this->m_hWnd, IDC_EDIT_FATOR, (LPWSTR)wstrTemp.c_str(), wstrTemp.max_size());
-    std::string strLen = ComFunction::ConvertWStringToAnsi(wstrTemp);
-    bool isTrue = ComFunction::IsFloatNumber(strLen);
-    if (!isTrue)
+    std::wstring editText;
+    ::GetDlgItemText(m_hWnd, IDC_EDIT_FATOR, (LPWSTR)editText.c_str(), editText.max_size());
+    std::string editTextBuf = ComFunction::ConvertWstringToAnsi(editText);
+    bool isNumber = ComFunction::IsFloatNumber(editTextBuf);
+    if (!isNumber)
     {
-        TCHAR cTemp[1024];
-        swprintf_s(cTemp, _T("请输入一个有效的浮点型数字！"), MIN_ROTAT, MAX_ROTAT);
+        TCHAR cTemp[1024] = {0};
+        ::swprintf_s(cTemp, _T("请输入一个有效的浮点型数字！"), MIN_ROTAT, MAX_ROTAT);
         std::wstring wstrTitle(cTemp);
         if (::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
         {
@@ -820,15 +638,15 @@ LRESULT CMainDlg::OnEnChangeEditFator(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /
             GetDlgItem(IDC_EDIT_FATOR).SetFocus();
         }
     }
-    float nfator = (float)_wtof(wstrTemp.c_str());
-    if (nfator > 0)
+    double dfator = _wtof(editText.c_str());
+    if (dfator > 0)
     {
-        if (nfator > MAX_FATOR || nfator < MIN_FATOR)
+        if (dfator > MAX_FATOR || dfator < MIN_FATOR)
         {
-            TCHAR cTemp[1024];
-            swprintf_s(cTemp, _T("输入的系数必须在%3.1f~%3.1f之间!"), MIN_FATOR, MAX_FATOR);
-            std::wstring wstrTitle(cTemp);
-            if (::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
+            TCHAR cTemp[1024] = {0};
+            ::swprintf_s(cTemp, _T("输入的系数必须在%3.1f~%3.1f之间!"), MIN_FATOR, MAX_FATOR);
+            std::wstring editTitle(cTemp);
+            if (::MessageBox(m_hWnd, (LPWSTR)editTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
             {
                 GetDlgItem(IDC_EDIT_FATOR).SetWindowTextW(_T(""));
                 GetDlgItem(IDC_EDIT_FATOR).SetFocus();
@@ -840,13 +658,13 @@ LRESULT CMainDlg::OnEnChangeEditFator(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /
 
 LRESULT CMainDlg::OnEnChangeEditRotate(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    std::wstring wstrTemp;
-    ::GetDlgItemText(m_hWnd, IDC_EDIT_ROTATE, (LPWSTR)wstrTemp.c_str(), wstrTemp.max_size());
-    std::string strLen = ComFunction::ConvertWStringToAnsi(wstrTemp);
-    bool isTrue = ComFunction::IsIntNumber(strLen);
-    if (!isTrue)
+    std::wstring editText;
+    ::GetDlgItemText(m_hWnd, IDC_EDIT_ROTATE, (LPWSTR)editText.c_str(), editText.max_size());
+    std::string editTextBuf = ComFunction::ConvertWstringToAnsi(editText);
+    bool isNumber = ComFunction::IsIntNumber(editTextBuf);
+    if (!isNumber)
     {
-        TCHAR cTemp[1024];
+        TCHAR cTemp[1024] = {0};
         swprintf_s(cTemp, _T("请输入一个有效的整型数字！"), MIN_ROTAT, MAX_ROTAT);
         std::wstring wstrTitle(cTemp);
         if (::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
@@ -855,15 +673,15 @@ LRESULT CMainDlg::OnEnChangeEditRotate(WORD /*wNotifyCode*/, WORD /*wID*/, HWND 
             GetDlgItem(IDC_EDIT_ROTATE).SetFocus();
         }
     }
-    int nRotar = _wtoi(wstrTemp.c_str());
+    int nRotar = _wtoi(editText.c_str());
     if (nRotar > 0)
     {
         if (nRotar > MAX_ROTAT || nRotar < MIN_ROTAT)
         {
-            TCHAR cTemp[1024];
-            swprintf_s(cTemp, _T("输入的角度必须在%d~%d之间!"), MIN_ROTAT, MAX_ROTAT);
-            std::wstring wstrTitle(cTemp);
-            if (::MessageBox(m_hWnd, (LPWSTR)wstrTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
+            TCHAR cTemp[1024] = {0};
+            ::swprintf_s(cTemp, _T("输入的角度必须在%d~%d之间!"), MIN_ROTAT, MAX_ROTAT);
+            std::wstring editTitle(cTemp);
+            if (::MessageBox(m_hWnd, (LPWSTR)editTitle.c_str(), _T("Tips"), MB_OK) == IDOK)
             {
                 GetDlgItem(IDC_EDIT_ROTATE).SetWindowTextW(_T(""));
                 GetDlgItem(IDC_EDIT_ROTATE).SetFocus();
@@ -873,43 +691,43 @@ LRESULT CMainDlg::OnEnChangeEditRotate(WORD /*wNotifyCode*/, WORD /*wID*/, HWND 
     return 0;
 }
 
-LRESULT CMainDlg::OnBnClickedBtnprepage(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+LRESULT CMainDlg::OnClickedBtnPrepage(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    m_strFileNameAry.clear();
-    if (!m_wstrImagePath.empty())
+    m_fileNameAry.clear();
+    if (!m_imagePath.empty())
     {
-        std::wstring strTempPath = ComFunction::GetFilePath(m_wstrImagePath);
-        std::string strFilePath = ComFunction::ConvertWStringToAnsi(strTempPath);
-        GetAllFormatFiles(strFilePath, m_strFileNameAry, ".jpg");
-        if (m_strFileNameAry.size() > 0)
+        std::wstring filePath = ComFunction::GetFilePath(m_imagePath);
+        std::string filePathBuf = ComFunction::ConvertWstringToAnsi(filePath);
+        GetAllFormatFiles(filePathBuf, m_fileNameAry, ".jpg");
+        if (m_fileNameAry.size() > 0)
         {
-            for (size_t i = 0; i < m_strFileNameAry.size(); i++)
+            for (size_t i = 0; i < m_fileNameAry.size(); i++)
             {
-                std::string strImagepath = ComFunction::ConvertWStringToAnsi(m_wstrImagePath);
-                if (strImagepath == m_strFileNameAry[i])
+                std::string imagePath = ComFunction::ConvertWstringToAnsi(m_imagePath);
+                if (imagePath == m_fileNameAry[i])
                 {
-                    m_iCurNumber = (int)i;
+                    m_iCurNumber = i;
                 }
             }
-            std::wstring wstrCurPath;
-            std::string strFilename;
-            if ((m_iCurNumber - 1) <= 0)
+            std::wstring curImagePath;
+            std::string curImagePathBuf;
+            if ((m_iCurNumber - 1) < 0)
             {
-                strFilename = m_strFileNameAry[m_strFileNameAry.size() - 1];
-                wstrCurPath = ComFunction::ConvertAnsiToWString(strFilename);
+                curImagePathBuf = m_fileNameAry[m_fileNameAry.size() - 1];
+                curImagePath = ComFunction::ConvertAnsiToWstring(curImagePathBuf);
             }
             else
             {
-                strFilename = m_strFileNameAry[m_iCurNumber - 1];
-                wstrCurPath = ComFunction::ConvertAnsiToWString(strFilename);
+                curImagePathBuf = m_fileNameAry[m_iCurNumber - 1];
+                curImagePath = ComFunction::ConvertAnsiToWstring(curImagePathBuf);
             }
             // 更新全局图片路径
-            m_wstrImagePath = wstrCurPath;
-            DestoryPicture();
-            ShowPicture(m_wstrImagePath);
+            m_imagePath = curImagePath;
+            DestoryImage();
+            ShowImage(m_imagePath);
             // 初始化缩放因子
-            m_fFactor = 1.0;
-            m_fRoate = 0.0;
+            m_dFactor = 1.0;
+            m_nRoate = 0;
         }
     }
     else
@@ -919,43 +737,43 @@ LRESULT CMainDlg::OnBnClickedBtnprepage(WORD /*wNotifyCode*/, WORD /*wID*/, HWND
     return 0;
 }
 
-LRESULT CMainDlg::OnBnClickedBtnnextpage(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+LRESULT CMainDlg::OnClickedBtnNextpage(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    m_strFileNameAry.clear();
-    if (!m_wstrImagePath.empty())
+    m_fileNameAry.clear();
+    if (!m_imagePath.empty())
     {
-        std::wstring strTempPath = ComFunction::GetFilePath(m_wstrImagePath);
-        std::string strFilePath = ComFunction::ConvertWStringToAnsi(strTempPath);
-        GetAllFormatFiles(strFilePath, m_strFileNameAry, ".jpg");
-        if (m_strFileNameAry.size() > 0)
+        std::wstring filePath = ComFunction::GetFilePath(m_imagePath);
+        std::string filePathBuf = ComFunction::ConvertWstringToAnsi(filePath);
+        GetAllFormatFiles(filePathBuf, m_fileNameAry, ".jpg");
+        if (m_fileNameAry.size() > 0)
         {
-            for (size_t i = 0; i < m_strFileNameAry.size(); i++)
+            for (size_t i = 0; i < m_fileNameAry.size(); i++)
             {
-                std::string strImagepath = ComFunction::ConvertWStringToAnsi(m_wstrImagePath);
-                if (strImagepath == m_strFileNameAry[i])
+                std::string imagePath = ComFunction::ConvertWstringToAnsi(m_imagePath);
+                if (imagePath == m_fileNameAry[i])
                 {
-                    m_iCurNumber = (int)i;
+                    m_iCurNumber = i;
                 }
             }
-            std::wstring wstrCurPath;
-            std::string strFilename;
-            if ((m_iCurNumber + 1) >= (int)m_strFileNameAry.size())
+            std::wstring curImagePath;
+            std::string curImagePathBuf;
+            if ((m_iCurNumber + 1) >= m_fileNameAry.size())
             {
-                strFilename = m_strFileNameAry[0];
-                wstrCurPath = ComFunction::ConvertAnsiToWString(strFilename);
+                curImagePathBuf = m_fileNameAry[0];
+                curImagePath = ComFunction::ConvertAnsiToWstring(curImagePathBuf);
             }
             else
             {
-                strFilename = m_strFileNameAry[m_iCurNumber + 1];
-                wstrCurPath = ComFunction::ConvertAnsiToWString(strFilename);
+                curImagePathBuf = m_fileNameAry[m_iCurNumber + 1];
+                curImagePath = ComFunction::ConvertAnsiToWstring(curImagePathBuf);
             }
             // 更新全局图片路径
-            m_wstrImagePath = wstrCurPath;
-            DestoryPicture();
-            ShowPicture(m_wstrImagePath);
+            m_imagePath = curImagePath;
+            DestoryImage();
+            ShowImage(m_imagePath);
             // 初始化缩放因子
-            m_fFactor = 1.0;
-            m_fRoate = 0.0;
+            m_dFactor = 1.0;
+            m_nRoate = 0;
         }
     }
     else
@@ -965,30 +783,66 @@ LRESULT CMainDlg::OnBnClickedBtnnextpage(WORD /*wNotifyCode*/, WORD /*wID*/, HWN
     return 0;
 }
 
-void CMainDlg::GetAllFormatFiles(const std::string& path, std::vector<std::string>& files, const std::string& format)
+void CMainDlg::GetAllFormatFiles(const std::string& filePath, std::vector<std::string>& imagePath, const std::string& format)
 {
     // 文件句柄    
     long hFile = 0;
     // 文件信息    
-    ::_finddata_t fileinfo;
-    std::string p;
-    if ((hFile = ::_findfirst(p.assign(path).append("\\*" + format).c_str(), &fileinfo)) != -1)
+    ::_finddata_t fileInfo;
+    std::string tempFliePath;
+    if ((hFile = ::_findfirst(tempFliePath.assign(filePath).append("\\*" + format).c_str(), &fileInfo)) != -1)
     {
         do
         {
-            if ((fileinfo.attrib &  _A_SUBDIR))
+            if ((fileInfo.attrib & _A_SUBDIR))
             {
-                if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0)
+                if (strcmp(fileInfo.name, ".") != 0 && strcmp(fileInfo.name, "..") != 0)
                 {
-                    GetAllFormatFiles(p.assign(path).append("\\").append(fileinfo.name), files, format);
+                    GetAllFormatFiles(tempFliePath.assign(filePath).append("\\").append(fileInfo.name), imagePath, format);
                 }
             }
             else
             {
-                files.push_back(p.assign(path).append("\\").append(fileinfo.name));
+                imagePath.push_back(tempFliePath.assign(filePath).append("\\").append(fileInfo.name));
             }
-        } while (::_findnext(hFile, &fileinfo) == 0);
+        } 
+        while (::_findnext(hFile, &fileInfo) == 0);
         ::_findclose(hFile);
     }
 }
 
+void CMainDlg::SetWindowImage(Gdiplus::Image& objImage, double dFator, bool zoomEnable)
+{
+    double dFatorBuf = 1.0;
+    if (zoomEnable)
+    {
+        dFatorBuf = dFator;
+    }
+    CRect windowRect;
+    CWindow wndPic = GetDlgItem(IDC_PIC);
+    wndPic.GetClientRect(&windowRect);
+    CDC pDc(wndPic.GetDC());
+    Gdiplus::Graphics grapWindow(pDc.m_hDC);
+    //防止图片失真
+    SetStretchBltMode(pDc.m_hDC, STRETCH_HALFTONE);
+
+    CRect imageRect;
+    int imageHeight = objImage.GetHeight();
+    int imageWidth = objImage.GetWidth();
+    // 图片的尺寸小于图片控件尺寸
+    if (imageWidth <= windowRect.Width() && imageHeight <= windowRect.Height())
+    {
+        imageRect = CRect(windowRect.TopLeft(), CSize((int)(imageWidth * dFatorBuf), (int)(imageWidth * dFatorBuf)));
+        grapWindow.DrawImage(&objImage, imageRect.top, imageRect.left, imageRect.Width(), imageRect.Height());
+    }
+    // 图片的尺寸大于图片控件的尺寸 
+    else
+    {
+        double xScale = (double)windowRect.Width() / (double)imageWidth;
+        double yScale = (double)windowRect.Height() / (double)imageHeight;
+        double scaleIndex = (xScale <= yScale ? xScale : yScale);
+        imageRect = CRect(windowRect.TopLeft(), CSize((int)(imageWidth * scaleIndex * dFatorBuf), (int)(imageHeight * scaleIndex * dFatorBuf)));
+        grapWindow.DrawImage(&objImage, imageRect.top, imageRect.left, imageRect.Width(), imageRect.Height());
+        ReleaseDC(pDc);
+    }
+}

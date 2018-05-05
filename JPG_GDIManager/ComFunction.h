@@ -7,28 +7,28 @@ public:
     ~ComFunction();
 
     /** ¿í×Ö·û×ª×Ö·û
-    @param[in] wstr ¿í×Ö·û×Ö·û´®
+    @param[in] srcWidBytes ¿í×Ö·û´®
     */
-    static std::string ConvertWStringToAnsi(const std::wstring& wstr);
+    static std::string ConvertWstringToAnsi(const std::wstring& srcWidBytes);
 
     /** ×Ö·û×ª¿í×Ö·û
-    @param[in] str ×Ö·û×Ö·û´®
+    @param[in] srcBytes ×Ö·û´®
     */
-    static std::wstring ConvertAnsiToWString(const std::string& str);
+    static std::wstring ConvertAnsiToWstring(const std::string& srcBytes);
 
     /** ¼ì²é¸¡µãÊý×Ö
-    @param[in] str ×Ö·û´®
+    @param[in] strNumber ×Ö·û´®
     */
-    static bool IsFloatNumber(const std::string &str);
+    static bool IsFloatNumber(const std::string& strNumber);
 
     /** ¼ì²éÕûÐÍÊý×Ö
-    @param[in] str ×Ö·û´®
+    @param[in] strNumber ×Ö·û´®
     */
-    static bool IsIntNumber(const std::string &str);
+    static bool IsIntNumber(const std::string& strNumber);
 
     /** »ñµÃÎÄ¼þ¼ÐÂ·¾¶
     @param[in] strFullPathName ÎÄ¼þ¼ÐÖÐÎÄ¼þÂ·¾¶
     */
-    static std::wstring GetFilePath(std::wstring& strFullPathName);
+    static std::wstring GetFilePath(std::wstring& fullPathName);
 };
 
